@@ -2,7 +2,8 @@ import logging
 from src.config import Config
 from src.fetcher import DealFetcher
 from src.devto_publisher import DevToPublisher
-from src.pinterest_publisher import PinterestPublisher
+from src.telegram_publisher import TelegramPublisher
+from src.hashnode_publisher import HashnodePublisher
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
@@ -10,35 +11,40 @@ logger = logging.getLogger(__name__)
 def run():
     logger.info("Starting Onyx Deal Engine pipeline execution...")
     
-    # 1. Load Configuration
+    # 1. Configuration
     config = Config.from_env()
     
-    # 2. Fetch Deals
+    # 2. Refined Deal Fetching
     fetcher = DealFetcher(rapidapi_key=config.RAPIDAPI_KEY, amazon_tag=config.AMAZON_TAG)
-    deals = fetcher.fetch_tech_deals(query="tech deals")
+    deals = fetcher.fetch_tech_deals(
+        categories=["gaming laptop deals", "4k monitor deals", "pc components deals", "wireless audio deals"],
+        min_discount_pct=15,
+        min_rating=4.0
+    )
     
     if not deals:
-        logger.warning("No deals fetched. Exiting pipeline.")
+        logger.warning("No deals fetched matching criteria. Exiting pipeline.")
         return
 
-    logger.info(f"Retrieved {len(deals)} formatted deal items.")
+    logger.info(f"Retrieved {len(deals)} curated high-value deal items.")
 
-    # 3. Dev.to Article Publishing (Let publisher handle dynamic timestamp title)
+    # 3. Dev.to Publisher
     devto = DevToPublisher(api_key=config.DEVTO_API_KEY)
     devto_success = devto.publish_roundup(deals=deals)
 
-    # 4. Pinterest Pin Publishing (Safe Wrapper)
-    pins_created = 0
-    try:
-        pinterest = PinterestPublisher(
-            access_token=config.PINTEREST_ACCESS_TOKEN, 
-            board_id=config.PINTEREST_BOARD_ID
-        )
-        pins_created = pinterest.publish_deals(deals)
-    except Exception as e:
-        logger.warning(f"Pinterest publishing skipped: {e}")
+    # 4. Telegram Channel Publisher
+    telegram = TelegramPublisher(bot_token=config.TELEGRAM_BOT_TOKEN, chat_id=config.TELEGRAM_CHAT_ID)
+    telegram_posts = telegram.publish_deals(deals=deals)
 
-    logger.info(f"Pipeline complete. Dev.to published: {devto_success} | Pinterest pins created: {pins_created}")
+    # 5. Hashnode Publisher
+    hashnode = HashnodePublisher(api_key=config.HASHNODE_API_KEY, publication_id=config.HASHNODE_PUBLICATION_ID)
+    hashnode_success = hashnode.publish_roundup(deals=deals)
+
+    logger.info(
+        f"Pipeline complete. Dev.to: {devto_success} | "
+        f"Telegram posts: {telegram_posts} | "
+        f"Hashnode: {hashnode_success}"
+    )
 
 if __name__ == "__main__":
     run()
