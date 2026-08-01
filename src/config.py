@@ -11,7 +11,7 @@ class Config:
     AMAZON_TAG: str
     DEVTO_API_KEY: str
     RAPIDAPI_KEY: str
-    
+
     # Optional integrations (defaults to empty string if not set)
     PINTEREST_ACCESS_TOKEN: str
     PINTEREST_BOARD_ID: str
@@ -27,12 +27,12 @@ class Config:
         amazon_tag = os.getenv("AMAZON_TAG", "onyxdeals06-20")
         devto_key = os.getenv("DEVTO_API_KEY", "")
         rapidapi_key = os.getenv("RAPIDAPI_KEY", "")
-        
+
         # Optional service keys
         pinterest_token = os.getenv("PINTEREST_ACCESS_TOKEN", "")
         pinterest_board = os.getenv("PINTEREST_BOARD_ID", "tech-deals-vault")
         google_key = os.getenv("GOOGLE_API_KEY", "")
-        
+
         telegram_token = os.getenv("TELEGRAM_BOT_TOKEN", "")
         telegram_chat = os.getenv("TELEGRAM_CHAT_ID", "")
         hashnode_key = os.getenv("HASHNODE_API_KEY", "")
