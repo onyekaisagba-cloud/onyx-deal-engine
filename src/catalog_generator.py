@@ -15,6 +15,7 @@ class CatalogGenerator:
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="google-site-verification" content="vUJO5ZYWYpCMsOBQQ6uGElWMqdq5GhBdYDXb-XtD2ac" />
     <title>Onyx Tech Deals - Daily High-Value Price Drops</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; margin: 0; padding: 20px; }
