@@ -3,7 +3,6 @@ from src.config import Config
 from src.fetcher import DealFetcher
 from src.devto_publisher import DevToPublisher
 from src.telegram_publisher import TelegramPublisher
-from src.hashnode_publisher import HashnodePublisher
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
@@ -28,22 +27,21 @@ def run():
 
     logger.info(f"Retrieved {len(deals)} curated high-value deal items.")
 
-    # 3. Dev.to Publisher
+    # 3. Dev.to Publisher (Active & Primary Blog Destination)
     devto = DevToPublisher(api_key=config.DEVTO_API_KEY)
     devto_success = devto.publish_roundup(deals=deals)
 
-    # 4. Telegram Channel Publisher
-    telegram = TelegramPublisher(bot_token=config.TELEGRAM_BOT_TOKEN, chat_id=config.TELEGRAM_CHAT_ID)
-    telegram_posts = telegram.publish_deals(deals=deals)
-
-    # 5. Hashnode Publisher
-    hashnode = HashnodePublisher(api_key=config.HASHNODE_API_KEY, publication_id=config.HASHNODE_PUBLICATION_ID)
-    hashnode_success = hashnode.publish_roundup(deals=deals)
+    # 4. Telegram Channel Publisher (Instant Live Channel Broadcast)
+    telegram_posts = 0
+    if config.TELEGRAM_BOT_TOKEN and config.TELEGRAM_CHAT_ID:
+        telegram = TelegramPublisher(bot_token=config.TELEGRAM_BOT_TOKEN, chat_id=config.TELEGRAM_CHAT_ID)
+        telegram_posts = telegram.publish_deals(deals=deals)
+    else:
+        logger.info("Telegram credentials not configured; skipping Telegram broadcast.")
 
     logger.info(
         f"Pipeline complete. Dev.to: {devto_success} | "
-        f"Telegram posts: {telegram_posts} | "
-        f"Hashnode: {hashnode_success}"
+        f"Telegram posts: {telegram_posts}"
     )
 
 if __name__ == "__main__":
