@@ -23,13 +23,11 @@ class PinterestPublisher:
             res.raise_for_status()
             boards = res.json().get("items", [])
             
-            # Match by ID or by name/slug
             for b in boards:
                 if b.get("id") == self.board_id or b.get("name").lower() == "tech-deals-vault":
                     logger.info(f"Found active Pinterest Board ID: {b.get('id')}")
                     return b.get("id")
 
-            # If board doesn't exist yet, create it automatically
             logger.info("Board 'tech-deals-vault' not found. Creating board...")
             create_res = requests.post(
                 boards_url, 
@@ -39,20 +37,29 @@ class PinterestPublisher:
             )
             create_res.raise_for_status()
             new_board_id = create_res.json().get("id")
-            logger.info(f"Created new Pinterest Board with ID: {new_board_id}")
             return new_board_id
 
+        except requests.exceptions.HTTPError as e:
+            if e.response is not None and e.response.status_code == 401:
+                logger.warning("Pinterest API access unauthorized (Trial access pending/denied). Skipping Pinterest publishing.")
+                raise PermissionError("Pinterest Unauthorized")
+            logger.warning(f"Failed to resolve Pinterest Board ID: {e}")
+            return self.board_id
         except Exception as e:
-            logger.error(f"Failed to resolve Pinterest Board ID: {e}")
+            logger.warning(f"Failed to resolve Pinterest Board ID: {e}")
             return self.board_id
 
     def publish_deals(self, deals: List[Dict[str, Any]]) -> int:
         """Creates individual Pins for top deals on the Pinterest board."""
-        target_board_id = self._get_or_verify_board_id()
+        try:
+            target_board_id = self._get_or_verify_board_id()
+        except PermissionError:
+            return 0
+
         successful_pins = 0
 
-        for deal in deals[:5]:  # Post top 5 deals to prevent rate limits
-            title = deal.get("title", "Tech Deal")[:100]  # Pinterest title max length
+        for deal in deals[:5]:
+            title = deal.get("title", "Tech Deal")[:100]
             description = f"Check out this deal: {title}. Price: {deal.get('price', 'Limited Time offer')}!"
             link = deal.get("affiliate_url")
             image_url = deal.get("image_url")
@@ -76,7 +83,12 @@ class PinterestPublisher:
                 response.raise_for_status()
                 successful_pins += 1
                 logger.info(f"Successfully created Pinterest Pin for ASIN: {deal.get('asin')}")
+            except requests.exceptions.HTTPError as e:
+                if e.response is not None and e.response.status_code == 401:
+                    logger.warning("Pinterest publishing skipped (401 Unauthorized).")
+                    break
+                logger.warning(f"Failed to create Pin for {deal.get('asin')}: {e}")
             except Exception as e:
-                logger.error(f"Failed to create Pin for {deal.get('asin')}: {e}")
+                logger.warning(f"Failed to create Pin for {deal.get('asin')}: {e}")
 
         return successful_pins
