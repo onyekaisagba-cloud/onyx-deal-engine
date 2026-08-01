@@ -14,7 +14,6 @@ def run():
     config = Config.from_env()
     
     # 2. High-Ticket / High-Value Deal Fetching
-    # Focused on $300+ ticket categories (gaming laptops, OLED/4K monitors, GPUs, flagship audio)
     fetcher = DealFetcher(rapidapi_key=config.RAPIDAPI_KEY, amazon_tag=config.AMAZON_TAG)
     deals = fetcher.fetch_tech_deals(
         categories=[
@@ -25,12 +24,11 @@ def run():
             "premium noise canceling headphones"
         ],
         min_discount_pct=15,
-        min_rating=4.0,
-        min_price=100.0  # Filters out cheap cables/dongles to prioritize high-value sales
+        min_rating=4.0
     )
     
     if not deals:
-        logger.warning("No high-ticket deals fetched matching criteria. Exiting pipeline.")
+        logger.warning("No deals fetched matching criteria. Exiting pipeline.")
         return
 
     logger.info(f"Retrieved {len(deals)} curated high-value deal items.")
