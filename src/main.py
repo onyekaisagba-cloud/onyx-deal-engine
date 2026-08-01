@@ -1,5 +1,4 @@
 import logging
-from datetime import datetime
 from src.config import Config
 from src.fetcher import DealFetcher
 from src.devto_publisher import DevToPublisher
@@ -24,13 +23,9 @@ def run():
 
     logger.info(f"Retrieved {len(deals)} formatted deal items.")
 
-    # 3. Dev.to Article Publishing
+    # 3. Dev.to Article Publishing (Let publisher handle dynamic timestamp title)
     devto = DevToPublisher(api_key=config.DEVTO_API_KEY)
-    today_str = datetime.now().strftime("%B %d, %Y")
-    devto_success = devto.publish_roundup(
-        deals=deals, 
-        title=f"🔥 Top Tech Deals & Discounts — {today_str}"
-    )
+    devto_success = devto.publish_roundup(deals=deals)
 
     # 4. Pinterest Pin Publishing (Safe Wrapper)
     pins_created = 0
@@ -41,7 +36,7 @@ def run():
         )
         pins_created = pinterest.publish_deals(deals)
     except Exception as e:
-        logger.warning(f"Pinterest publishing skipped (pending app approval): {e}")
+        logger.warning(f"Pinterest publishing skipped: {e}")
 
     logger.info(f"Pipeline complete. Dev.to published: {devto_success} | Pinterest pins created: {pins_created}")
 
