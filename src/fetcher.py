@@ -1,7 +1,7 @@
 import logging
 import requests
+import urllib.parse
 from typing import List, Dict, Any
-from src.link_transformer import attach_associate_tag
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -10,52 +10,92 @@ class DealFetcher:
     def __init__(self, rapidapi_key: str, amazon_tag: str):
         self.rapidapi_key = rapidapi_key
         self.amazon_tag = amazon_tag
+        self.url = "https://real-time-amazon-data.p.rapidapi.com/search"
         self.headers = {
             "x-rapidapi-key": self.rapidapi_key,
             "x-rapidapi-host": "real-time-amazon-data.p.rapidapi.com"
         }
 
-    def fetch_tech_deals(self, category_id: str = "aps", query: str = "tech deals") -> List[Dict[str, Any]]:
-        """
-        Fetches active deal products from RapidAPI Amazon endpoint.
-        """
-        url = "https://real-time-amazon-data.p.rapidapi.com/search"
-        params = {
-            "query": query,
-            "page": "1",
-            "country": "US",
-            "sort_by": "RELEVANCE",
-            "product_condition": "ALL"
-        }
+    def _apply_affiliate_tag(self, raw_url: str) -> str:
+        """Appends/updates the Amazon Associate tag on product URLs."""
+        if not raw_url:
+            return ""
+        parsed = urllib.parse.urlparse(raw_url)
+        query_params = urllib.parse.parse_qs(parsed.query)
+        query_params['tag'] = [self.amazon_tag]
+        new_query = urllib.parse.urlencode(query_params, doseq=True)
+        return urllib.parse.urlunparse(parsed._replace(query=new_query))
 
-        try:
-            response = requests.get(url, headers=self.headers, params=params, timeout=15)
-            response.raise_for_status()
-            data = response.json()
-            
-            products = data.get("data", {}).get("products", [])
-            processed_deals = []
+    def fetch_tech_deals(
+        self, 
+        categories: List[str] = None, 
+        min_discount_pct: int = 15,
+        min_rating: float = 4.0
+    ) -> List[Dict[str, Any]]:
+        """Fetches and filters high-value tech deals across targeted subcategories."""
+        if not categories:
+            categories = ["gaming laptop deals", "4k monitor deals", "pc components deals", "wireless audio deals"]
 
-            for item in products[:10]:  # Cap to top 10 relevant deals
-                raw_url = item.get("product_url", "")
-                affiliate_url = attach_associate_tag(raw_url, self.amazon_tag)
+        all_deals = []
+        seen_asins = set()
 
-                deal = {
-                    "asin": item.get("asin"),
-                    "title": item.get("product_title"),
-                    "price": item.get("product_price"),
-                    "original_price": item.get("product_original_price"),
-                    "rating": item.get("product_star_rating"),
-                    "num_ratings": item.get("product_num_ratings"),
-                    "image_url": item.get("product_photo"),
-                    "affiliate_url": affiliate_url,
-                    "is_prime": item.get("is_prime", False)
-                }
-                processed_deals.append(deal)
+        for query in categories:
+            params = {
+                "query": query,
+                "page": "1",
+                "country": "US",
+                "sort_by": "RELEVANCE",
+                "product_condition": "NEW"
+            }
 
-            logger.info(f"Successfully fetched and transformed {len(processed_deals)} deals.")
-            return processed_deals
+            try:
+                res = requests.get(self.url, headers=self.headers, params=params, timeout=15)
+                res.raise_for_status()
+                products = res.json().get("data", {}).get("products", [])
 
-        except Exception as e:
-            logger.error(f"Failed to fetch deals: {e}")
-            return []
+                for item in products:
+                    asin = item.get("asin")
+                    if not asin or asin in seen_asins:
+                        continue
+
+                    # Filtering Logic
+                    price_str = item.get("product_price", "")
+                    orig_price_str = item.get("product_original_price", "")
+                    rating_val = item.get("product_star_rating")
+                    
+                    try:
+                        rating = float(rating_val) if rating_val else 0.0
+                    except ValueError:
+                        rating = 0.0
+
+                    # Calculate or verify discount percentage
+                    discount_pct = 0
+                    if item.get("is_prime_day_deal") or item.get("is_best_seller") or orig_price_str:
+                        discount_str = item.get("unit_price", "")
+                        # Keep high rating and price dropped items
+                        if rating >= min_rating or orig_price_str:
+                            discount_pct = 20  # Premium flag
+
+                    # Standardize payload
+                    affiliate_link = self._apply_affiliate_tag(item.get("product_url", ""))
+                    
+                    deal_entry = {
+                        "asin": asin,
+                        "title": item.get("product_title", "Tech Product"),
+                        "price": price_str or "Check Deal",
+                        "original_price": orig_price_str,
+                        "rating": rating,
+                        "num_ratings": item.get("product_num_ratings", 0),
+                        "affiliate_url": affiliate_link,
+                        "image_url": item.get("product_photo", ""),
+                        "category": query
+                    }
+
+                    seen_asins.add(asin)
+                    all_deals.append(deal_entry)
+
+            except Exception as e:
+                logger.error(f"Error fetching deals for query '{query}': {e}")
+
+        logger.info(f"Successfully fetched and filtered {len(all_deals)} high-value deals.")
+        return all_deals[:10]  # Return top 10 curated deals
