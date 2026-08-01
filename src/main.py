@@ -32,12 +32,16 @@ def run():
         title=f"🔥 Top Tech Deals & Discounts — {today_str}"
     )
 
-    # 4. Pinterest Pin Publishing
-    pinterest = PinterestPublisher(
-        access_token=config.PINTEREST_ACCESS_TOKEN, 
-        board_id=config.PINTEREST_BOARD_ID
-    )
-    pins_created = pinterest.publish_deals(deals)
+    # 4. Pinterest Pin Publishing (Safe Wrapper)
+    pins_created = 0
+    try:
+        pinterest = PinterestPublisher(
+            access_token=config.PINTEREST_ACCESS_TOKEN, 
+            board_id=config.PINTEREST_BOARD_ID
+        )
+        pins_created = pinterest.publish_deals(deals)
+    except Exception as e:
+        logger.warning(f"Pinterest publishing skipped (pending app approval): {e}")
 
     logger.info(f"Pipeline complete. Dev.to published: {devto_success} | Pinterest pins created: {pins_created}")
 
