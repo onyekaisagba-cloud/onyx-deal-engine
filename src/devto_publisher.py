@@ -1,5 +1,6 @@
 import logging
 import requests
+from datetime import datetime
 from typing import List, Dict, Any
 
 logging.basicConfig(level=logging.INFO)
@@ -42,11 +43,15 @@ class DevToPublisher:
         md += "\n\n*Updated automatically via Onyx Deal Engine.*"
         return md
 
-    def publish_roundup(self, deals: List[Dict[str, Any]], title: str = "Top Tech Deals & Discounts Today") -> bool:
-        """Publishes the deal article to Dev.to."""
+    def publish_roundup(self, deals: List[Dict[str, Any]], title: str = None) -> bool:
+        """Publishes the deal article to Dev.to with a unique timestamped title."""
         if not deals:
             logger.warning("No deals available to publish to Dev.to.")
             return False
+
+        if not title:
+            now_str = datetime.now().strftime("%B %d, %Y - %H:%M UTC")
+            title = f"🔥 Top Tech Deals & Discounts — {now_str}"
 
         markdown_content = self._generate_markdown(deals)
         payload = {
