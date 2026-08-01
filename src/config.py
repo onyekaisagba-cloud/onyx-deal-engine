@@ -15,7 +15,7 @@ class Config:
     GOOGLE_API_KEY: str
 
     @classmethod
-    from_env(cls) -> "Config":
+    def from_env(cls):
         """Loads and validates all required environment variables."""
         missing = []
         
