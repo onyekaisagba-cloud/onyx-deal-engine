@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 class TelegramPublisher:
     def __init__(self, bot_token: str, chat_id: str):
         self.bot_token = bot_token
-        self.chat_id = chat_id
+        self.chat_id = str(chat_id).strip()
         self.base_url = f"https://api.telegram.org/bot{self.bot_token}"
 
     def publish_deals(self, deals: List[Dict[str, Any]]) -> int:
@@ -21,24 +21,24 @@ class TelegramPublisher:
         sent_count = 0
         for deal in deals[:5]:  # Top 5 deals per run
             raw_title = deal.get("title", "Tech Deal")
-            safe_title = html.escape(raw_title[:120]) + "..."
+            safe_title = html.escape(raw_title[:100])
             
-            price = html.escape(deal.get("price", "Limited Time Offer"))
+            price = html.escape(str(deal.get("price", "Limited Time Offer")))
             orig = deal.get("original_price")
-            rating = deal.get("rating", "N/A")
-            url = deal.get("affiliate_url", "")
+            rating = str(deal.get("rating", "N/A"))
+            url = html.escape(deal.get("affiliate_url", ""))
             img = deal.get("image_url", "")
 
             caption = f"🔥 <b>DEAL ALERT</b>\n\n"
-            caption += f"<b>{safe_title}</b>\n\n"
+            caption += f"<b>{safe_title}...</b>\n\n"
             caption += f"💰 <b>Price:</b> {price}"
             if orig:
-                caption += f" <s>({html.escape(orig)})</s>"
+                caption += f" <s>({html.escape(str(orig))})</s>"
             caption += f"\n⭐ <b>Rating:</b> {rating}\n\n"
-            caption += f"👉 <a href='{url}'><b>Claim Deal on Amazon</b></a>"
+            caption += f"👉 <a href=\"{url}\"><b>Claim Deal on Amazon</b></a>"
 
-            # Attempt 1: Try sending Photo Card
             success = False
+            # Try sendPhoto
             if img:
                 try:
                     photo_payload = {
@@ -50,10 +50,13 @@ class TelegramPublisher:
                     res = requests.post(f"{self.base_url}/sendPhoto", json=photo_payload, timeout=15)
                     res.raise_for_status()
                     success = True
+                except requests.exceptions.HTTPError as e:
+                    err_msg = e.response.text if e.response is not None else str(e)
+                    logger.warning(f"sendPhoto failed for {deal.get('asin')}: {err_msg}. Retrying with sendMessage...")
                 except Exception as e:
-                    logger.warning(f"sendPhoto failed for {deal.get('asin')}: {e}. Retrying with sendMessage text fallback...")
+                    logger.warning(f"sendPhoto exception for {deal.get('asin')}: {e}")
 
-            # Attempt 2: Fallback to Text Message if photo fails or no image URL provided
+            # Try sendMessage fallback
             if not success:
                 try:
                     msg_payload = {
@@ -65,6 +68,9 @@ class TelegramPublisher:
                     res = requests.post(f"{self.base_url}/sendMessage", json=msg_payload, timeout=15)
                     res.raise_for_status()
                     success = True
+                except requests.exceptions.HTTPError as e:
+                    err_msg = e.response.text if e.response is not None else str(e)
+                    logger.error(f"Failed to post deal to Telegram for {deal.get('asin')}: {err_msg}")
                 except Exception as e:
                     logger.error(f"Failed to post deal to Telegram for {deal.get('asin')}: {e}")
 
