@@ -1,43 +1,74 @@
 import html
 import logging
+from typing import Any, Dict, List
+
 import requests
-from typing import List, Dict, Any
+from src.bounties import get_random_bounty
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 class TelegramPublisher:
-    def __init__(self, bot_token: str, chat_id: str):
+
+    def __init__(
+        self, bot_token: str, chat_id: str, amazon_tag: str = "onyx01d-20"
+    ):
         self.bot_token = bot_token
         self.chat_id = str(chat_id).strip()
+        self.amazon_tag = amazon_tag
         self.base_url = f"https://api.telegram.org/bot{self.bot_token}"
 
     def publish_deals(self, deals: List[Dict[str, Any]]) -> int:
-        """Broadcasts top deals to a Telegram channel/chat with safe fallback handling."""
+        """Broadcasts top deals to a Telegram channel/chat with badge display and bounty interleaving."""
         if not self.bot_token or not self.chat_id:
-            logger.warning("Telegram bot credentials missing. Skipping Telegram publishing.")
+            logger.warning(
+                "Telegram bot credentials missing. Skipping Telegram publishing."
+            )
             return 0
 
         sent_count = 0
-        for deal in deals[:5]:  # Top 5 deals per run
+        for idx, deal in enumerate(deals[:5]):
             raw_title = deal.get("title", "Tech Deal")
             safe_title = html.escape(raw_title[:100])
-            
+
             price = html.escape(str(deal.get("price", "Limited Time Offer")))
             currency = deal.get("currency", "USD")
             flag = deal.get("flag", "🇺🇸")
+            country = deal.get("country", "US")
             orig = deal.get("original_price")
             rating = str(deal.get("rating", "N/A"))
             url = html.escape(deal.get("affiliate_url", ""))
             img = deal.get("image_url", "")
+            badge = deal.get("badge")
 
-            caption = f"🔥 <b>DEAL ALERT</b> {flag}\n\n"
+            # Format Header with Price Tracking Badge
+            badge_line = (
+                f" [{html.escape(badge)}]" if badge else " [🔥 DEAL ALERT]"
+            )
+            caption = f"{flag}<b>{badge_line}</b>\n\n"
             caption += f"<b>{safe_title}...</b>\n\n"
             caption += f"💰 <b>Price:</b> {price} {currency}"
             if orig:
                 caption += f" <s>({html.escape(str(orig))})</s>"
             caption += f"\n⭐ <b>Rating:</b> {rating}\n\n"
-            caption += f"👉 <a href=\"{url}\"><b>Claim Deal on Amazon</b></a>\n\n"
+            caption += (
+                f'👉 <a href="{url}"><b>Claim Deal on Amazon</b></a>\n\n'
+            )
+
+            # Interleave Amazon Bounty Promo every 2 posts
+            if idx % 2 == 1:
+                bounty = get_random_bounty(
+                    country=country, amazon_tag=self.amazon_tag
+                )
+                bounty_callout = html.escape(bounty["callout"])
+                bounty_url = html.escape(bounty["url"])
+                caption += (
+                    "-------------------------------\n"
+                    f"{bounty_callout}\n"
+                    f'👉 <a href="{bounty_url}"><b>Claim Free Trial</b></a>\n\n'
+                )
+
             caption += f"<i>*Prices listed in {currency}. Amazon OneLink auto-redirects international visitors to local storefronts.</i>"
 
             success = False
@@ -48,16 +79,28 @@ class TelegramPublisher:
                         "chat_id": self.chat_id,
                         "photo": img,
                         "caption": caption,
-                        "parse_mode": "HTML"
+                        "parse_mode": "HTML",
                     }
-                    res = requests.post(f"{self.base_url}/sendPhoto", json=photo_payload, timeout=15)
+                    res = requests.post(
+                        f"{self.base_url}/sendPhoto",
+                        json=photo_payload,
+                        timeout=15,
+                    )
                     res.raise_for_status()
                     success = True
                 except requests.exceptions.HTTPError as e:
-                    err_msg = e.response.text if e.response is not None else str(e)
-                    logger.warning(f"sendPhoto failed for {deal.get('asin')}: {err_msg}. Retrying with sendMessage...")
+                    err_msg = (
+                        e.response.text
+                        if e.response is not None
+                        else str(e)
+                    )
+                    logger.warning(
+                        f"sendPhoto failed for {deal.get('asin')}: {err_msg}. Retrying with sendMessage..."
+                    )
                 except Exception as e:
-                    logger.warning(f"sendPhoto exception for {deal.get('asin')}: {e}")
+                    logger.warning(
+                        f"sendPhoto exception for {deal.get('asin')}: {e}"
+                    )
 
             # Try sendMessage fallback
             if not success:
@@ -66,19 +109,33 @@ class TelegramPublisher:
                         "chat_id": self.chat_id,
                         "text": caption,
                         "parse_mode": "HTML",
-                        "disable_web_page_preview": False
+                        "disable_web_page_preview": False,
                     }
-                    res = requests.post(f"{self.base_url}/sendMessage", json=msg_payload, timeout=15)
+                    res = requests.post(
+                        f"{self.base_url}/sendMessage",
+                        json=msg_payload,
+                        timeout=15,
+                    )
                     res.raise_for_status()
                     success = True
                 except requests.exceptions.HTTPError as e:
-                    err_msg = e.response.text if e.response is not None else str(e)
-                    logger.error(f"Failed to post deal to Telegram for {deal.get('asin')}: {err_msg}")
+                    err_msg = (
+                        e.response.text
+                        if e.response is not None
+                        else str(e)
+                    )
+                    logger.error(
+                        f"Failed to post deal to Telegram for {deal.get('asin')}: {err_msg}"
+                    )
                 except Exception as e:
-                    logger.error(f"Failed to post deal to Telegram for {deal.get('asin')}: {e}")
+                    logger.error(
+                        f"Failed to post deal to Telegram for {deal.get('asin')}: {e}"
+                    )
 
             if success:
                 sent_count += 1
-                logger.info(f"Successfully posted Telegram deal for ASIN: {deal.get('asin')} ({deal.get('country')})")
+                logger.info(
+                    f"Successfully posted Telegram deal for ASIN: {deal.get('asin')} ({deal.get('country')})"
+                )
 
         return sent_count
