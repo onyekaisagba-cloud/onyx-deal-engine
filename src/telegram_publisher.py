@@ -24,18 +24,21 @@ class TelegramPublisher:
             safe_title = html.escape(raw_title[:100])
             
             price = html.escape(str(deal.get("price", "Limited Time Offer")))
+            currency = deal.get("currency", "USD")
+            flag = deal.get("flag", "🇺🇸")
             orig = deal.get("original_price")
             rating = str(deal.get("rating", "N/A"))
             url = html.escape(deal.get("affiliate_url", ""))
             img = deal.get("image_url", "")
 
-            caption = f"🔥 <b>DEAL ALERT</b>\n\n"
+            caption = f"🔥 <b>DEAL ALERT</b> {flag}\n\n"
             caption += f"<b>{safe_title}...</b>\n\n"
-            caption += f"💰 <b>Price:</b> {price}"
+            caption += f"💰 <b>Price:</b> {price} {currency}"
             if orig:
                 caption += f" <s>({html.escape(str(orig))})</s>"
             caption += f"\n⭐ <b>Rating:</b> {rating}\n\n"
-            caption += f"👉 <a href=\"{url}\"><b>Claim Deal on Amazon</b></a>"
+            caption += f"👉 <a href=\"{url}\"><b>Claim Deal on Amazon</b></a>\n\n"
+            caption += f"<i>*Prices listed in {currency}. Amazon OneLink auto-redirects international visitors to local storefronts.</i>"
 
             success = False
             # Try sendPhoto
@@ -76,6 +79,6 @@ class TelegramPublisher:
 
             if success:
                 sent_count += 1
-                logger.info(f"Successfully posted Telegram deal for ASIN: {deal.get('asin')}")
+                logger.info(f"Successfully posted Telegram deal for ASIN: {deal.get('asin')} ({deal.get('country')})")
 
         return sent_count
