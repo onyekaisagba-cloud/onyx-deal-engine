@@ -1,16 +1,56 @@
 import logging
-import requests
+import random
 import time
 import urllib.parse
-from typing import List, Dict, Any
+from typing import Any, Dict, List
 
+import requests
 from src.scrapers.amazon import fetch_amazon_deals_native
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
+def exponential_backoff(max_retries: int = 3, base_delay: float = 2.0):
+    """Decorator that retries a function upon hitting HTTP 429 or network errors,
+
+    using exponential backoff with random jitter.
+    """
+
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            retries = 0
+            while retries <= max_retries:
+                try:
+                    return func(*args, **kwargs)
+                except requests.exceptions.RequestException as e:
+                    is_rate_limit = (
+                        e.response is not None
+                        and e.response.status_code == 429
+                    )
+                    if retries == max_retries or not is_rate_limit:
+                        logger.error(
+                            f"Execution failed after {retries} retries: {e}"
+                        )
+                        raise e
+
+                    # Calculate backoff delay: base_delay * 2^retries + random jitter
+                    sleep_time = (base_delay * (2**retries)) + random.uniform(
+                        0.5, 1.5
+                    )
+                    logger.warning(
+                        f"HTTP 429 Rate Limit hit. Retrying in {sleep_time:.2f}s... (Attempt {retries + 1}/{max_retries})"
+                    )
+                    time.sleep(sleep_time)
+                    retries += 1
+
+        return wrapper
+
+    return decorator
+
+
 class DealFetcher:
+
     def __init__(self, rapidapi_key: str = "", amazon_tag: str = ""):
         self.rapidapi_key = rapidapi_key
         self.amazon_tag = amazon_tag
@@ -21,7 +61,6 @@ class DealFetcher:
         }
 
     def _apply_affiliate_tag(self, raw_url: str) -> str:
-        """Appends/updates the Amazon Associate tag on product URLs."""
         if not raw_url:
             return ""
         parsed = urllib.parse.urlparse(raw_url)
@@ -30,10 +69,10 @@ class DealFetcher:
         new_query = urllib.parse.urlencode(query_params, doseq=True)
         return urllib.parse.urlunparse(parsed._replace(query=new_query))
 
+    @exponential_backoff(max_retries=3, base_delay=2.0)
     def _fetch_from_rapidapi(
         self, query: str, country: str
     ) -> List[Dict[str, Any]]:
-        """Fallback method: Fetches product listings via RapidAPI with rate limit handling."""
         if not self.rapidapi_key:
             return []
 
@@ -45,20 +84,14 @@ class DealFetcher:
             "product_condition": "NEW",
         }
 
-        # Polite delay to keep under RapidAPI rate limits
+        # Polite base delay before making call
         time.sleep(1.5)
 
-        try:
-            res = requests.get(
-                self.url, headers=self.headers, params=params, timeout=15
-            )
-            res.raise_for_status()
-            return res.json().get("data", {}).get("products", [])
-        except Exception as e:
-            logger.error(
-                f"Error in RapidAPI fallback for query '{query}' [{country}]: {e}"
-            )
-            return []
+        res = requests.get(
+            self.url, headers=self.headers, params=params, timeout=15
+        )
+        res.raise_for_status()
+        return res.json().get("data", {}).get("products", [])
 
     def fetch_tech_deals(
         self,
@@ -66,10 +99,6 @@ class DealFetcher:
         min_discount_pct: int = 15,
         min_rating: float = 4.0,
     ) -> List[Dict[str, Any]]:
-        """
-        Fetches and filters high-value tech deals across US and CA marketplaces.
-        Uses in-house native scraper first, falling back to RapidAPI on error or empty response.
-        """
         if not categories:
             categories = [
                 "gaming laptop deals",
@@ -123,14 +152,19 @@ class DealFetcher:
                         f"Native scraper attempt failed for '{query}' [{country}]: {ex}"
                     )
 
-                # --- 2. Fallback: RapidAPI ---
+                # --- 2. Fallback: RapidAPI with Exponential Backoff ---
                 if not items:
                     logger.info(
                         f"Native scraper returned no results. Triggering RapidAPI fallback for '{query}' [{country}]..."
                     )
-                    items = self._fetch_from_rapidapi(
-                        query=query, country=country
-                    )
+                    try:
+                        items = self._fetch_from_rapidapi(
+                            query=query, country=country
+                        )
+                    except Exception as err:
+                        logger.error(
+                            f"RapidAPI fallback failed after retries for '{query}' [{country}]: {err}"
+                        )
 
                 # --- 3. Normalization and Deduplication ---
                 for item in items:
