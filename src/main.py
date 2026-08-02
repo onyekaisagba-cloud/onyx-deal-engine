@@ -9,7 +9,6 @@ from src.config import Config
 from src.devto_publisher import DevToPublisher
 from src.fetcher import DealFetcher
 from src.telegram_publisher import TelegramPublisher
-from src.twitter_publisher import TwitterPublisher
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
@@ -47,11 +46,11 @@ def run():
 
     logger.info(f"Retrieved {len(deals)} curated high-value deal items.")
 
-    # 3. Dev.to Publisher
+    # 3. Dev.to Publisher (Organic SEO Traffic)
     devto = DevToPublisher(api_key=config.DEVTO_API_KEY)
     devto_success = devto.publish_roundup(deals=deals)
 
-    # 4. Telegram Channel Publisher
+    # 4. Telegram Direct Hub (Direct Internal Feed / Log Repository)
     telegram_posts = 0
     if config.TELEGRAM_BOT_TOKEN and config.TELEGRAM_CHAT_ID:
         telegram = TelegramPublisher(
@@ -63,22 +62,11 @@ def run():
             "Telegram credentials not configured; skipping Telegram broadcast."
         )
 
-    # 5. X / Twitter Auto-Publisher (ADDED)
+    # 5. X / Twitter Publisher (Disabled - Cost-Free Mode)
     twitter_posts = 0
-    if config.TWITTER_API_KEY and config.TWITTER_API_SECRET:
-        twitter = TwitterPublisher(
-            api_key=config.TWITTER_API_KEY,
-            api_secret=config.TWITTER_API_SECRET,
-            access_token=config.TWITTER_ACCESS_TOKEN,
-            access_token_secret=config.TWITTER_ACCESS_TOKEN_SECRET,
-        )
-        twitter_posts = twitter.publish_deals(deals=deals)
-    else:
-        logger.info(
-            "Twitter credentials not fully configured; skipping X/Twitter broadcast."
-        )
+    logger.info("X/Twitter publishing skipped to operate zero-cost pipeline.")
 
-    # 6. GitHub Pages Catalog Generator (FIXED METHOD CALL)
+    # 6. GitHub Pages Storefront Generator
     catalog_gen = CatalogGenerator(output_path="index.html")
     catalog_success = catalog_gen.generate(deals=deals)
 
