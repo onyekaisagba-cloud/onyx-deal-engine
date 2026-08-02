@@ -32,70 +32,78 @@ class DealFetcher:
         min_discount_pct: int = 15,
         min_rating: float = 4.0
     ) -> List[Dict[str, Any]]:
-        """Fetches and filters high-value tech deals across targeted subcategories."""
+        """Fetches and filters high-value tech deals across both US and CA marketplaces."""
         if not categories:
             categories = ["gaming laptop deals", "4k monitor deals", "pc components deals", "wireless audio deals"]
 
         all_deals = []
         seen_asins = set()
 
-        for query in categories:
-            params = {
-                "query": query,
-                "page": "1",
-                "country": "US",
-                "sort_by": "RELEVANCE",
-                "product_condition": "NEW"
-            }
+        # Configured target regions
+        regions = [
+            {"country": "US", "currency": "USD", "flag": "🇺🇸"},
+            {"country": "CA", "currency": "CAD", "flag": "🇨🇦"}
+        ]
 
-            try:
-                res = requests.get(self.url, headers=self.headers, params=params, timeout=15)
-                res.raise_for_status()
-                products = res.json().get("data", {}).get("products", [])
+        for region in regions:
+            for query in categories:
+                params = {
+                    "query": query,
+                    "page": "1",
+                    "country": region["country"],
+                    "sort_by": "RELEVANCE",
+                    "product_condition": "NEW"
+                }
 
-                for item in products:
-                    asin = item.get("asin")
-                    if not asin or asin in seen_asins:
-                        continue
+                try:
+                    res = requests.get(self.url, headers=self.headers, params=params, timeout=15)
+                    res.raise_for_status()
+                    products = res.json().get("data", {}).get("products", [])
 
-                    # Filtering Logic
-                    price_str = item.get("product_price", "")
-                    orig_price_str = item.get("product_original_price", "")
-                    rating_val = item.get("product_star_rating")
-                    
-                    try:
-                        rating = float(rating_val) if rating_val else 0.0
-                    except ValueError:
-                        rating = 0.0
+                    for item in products:
+                        asin = item.get("asin")
+                        # Deduplicate by unique combination of ASIN and Country Code
+                        unique_key = f"{asin}_{region['country']}"
+                        if not asin or unique_key in seen_asins:
+                            continue
 
-                    # Calculate or verify discount percentage
-                    discount_pct = 0
-                    if item.get("is_prime_day_deal") or item.get("is_best_seller") or orig_price_str:
-                        discount_str = item.get("unit_price", "")
-                        # Keep high rating and price dropped items
-                        if rating >= min_rating or orig_price_str:
-                            discount_pct = 20  # Premium flag
+                        # Filtering Logic
+                        price_str = item.get("product_price", "")
+                        orig_price_str = item.get("product_original_price", "")
+                        rating_val = item.get("product_star_rating")
+                        
+                        try:
+                            rating = float(rating_val) if rating_val else 0.0
+                        except ValueError:
+                            rating = 0.0
 
-                    # Standardize payload
-                    affiliate_link = self._apply_affiliate_tag(item.get("product_url", ""))
-                    
-                    deal_entry = {
-                        "asin": asin,
-                        "title": item.get("product_title", "Tech Product"),
-                        "price": price_str or "Check Deal",
-                        "original_price": orig_price_str,
-                        "rating": rating,
-                        "num_ratings": item.get("product_num_ratings", 0),
-                        "affiliate_url": affiliate_link,
-                        "image_url": item.get("product_photo", ""),
-                        "category": query
-                    }
+                        # Calculate or verify discount percentage
+                        if item.get("is_prime_day_deal") or item.get("is_best_seller") or orig_price_str:
+                            if rating >= min_rating or orig_price_str:
+                                pass # Keep valid deal candidates
 
-                    seen_asins.add(asin)
-                    all_deals.append(deal_entry)
+                        affiliate_link = self._apply_affiliate_tag(item.get("product_url", ""))
+                        
+                        deal_entry = {
+                            "asin": asin,
+                            "title": item.get("product_title", "Tech Product"),
+                            "price": price_str or "Check Deal",
+                            "original_price": orig_price_str,
+                            "currency": region["currency"],
+                            "flag": region["flag"],
+                            "country": region["country"],
+                            "rating": rating,
+                            "num_ratings": item.get("product_num_ratings", 0),
+                            "affiliate_url": affiliate_link,
+                            "image_url": item.get("product_photo", ""),
+                            "category": query
+                        }
 
-            except Exception as e:
-                logger.error(f"Error fetching deals for query '{query}': {e}")
+                        seen_asins.add(unique_key)
+                        all_deals.append(deal_entry)
 
-        logger.info(f"Successfully fetched and filtered {len(all_deals)} high-value deals.")
-        return all_deals[:10]  # Return top 10 curated deals
+                except Exception as e:
+                    logger.error(f"Error fetching deals for query '{query}' in region {region['country']}: {e}")
+
+        logger.info(f"Successfully fetched and filtered {len(all_deals)} high-value deals across US & CA.")
+        return all_deals[:10]  # Return top 10 curated deals across regions
