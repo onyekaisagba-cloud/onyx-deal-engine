@@ -103,3 +103,20 @@ def generate_html_catalog(
     except Exception as e:
         logger.error(f"Failed to generate catalog: {e}")
         return False
+
+
+# Added Class Wrapper to satisfy `from src.catalog_generator import CatalogGenerator`
+class CatalogGenerator:
+    """Class wrapper providing object interface for catalog generation."""
+
+    def __init__(self, output_path: str = "index.html"):
+        self.output_path = output_path
+
+    def generate(self, deals: List[Dict[str, Any]]) -> bool:
+        """Triggers HTML catalog generation."""
+        return generate_html_catalog(deals, self.output_path)
+
+    @staticmethod
+    def generate_sitemap(output_path: str = "sitemap.xml") -> bool:
+        """Triggers sitemap generation."""
+        return generate_sitemap(output_path)
