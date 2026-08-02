@@ -5,6 +5,7 @@ import urllib.parse
 from typing import Any, Dict, List
 
 import requests
+from src.db import process_price_badge
 from src.scrapers.amazon import fetch_amazon_deals_native
 
 logging.basicConfig(level=logging.INFO)
@@ -34,7 +35,6 @@ def exponential_backoff(max_retries: int = 3, base_delay: float = 2.0):
                         )
                         raise e
 
-                    # Calculate backoff delay: base_delay * 2^retries + random jitter
                     sleep_time = (base_delay * (2**retries)) + random.uniform(
                         0.5, 1.5
                     )
@@ -84,7 +84,6 @@ class DealFetcher:
             "product_condition": "NEW",
         }
 
-        # Polite base delay before making call
         time.sleep(1.5)
 
         res = requests.get(
@@ -136,6 +135,7 @@ class DealFetcher:
                                     "product_price": n_item.get(
                                         "product_price"
                                     ),
+                                    "raw_price": n_item.get("raw_price"),
                                     "product_original_price": n_item.get(
                                         "original_price"
                                     ),
@@ -166,7 +166,7 @@ class DealFetcher:
                             f"RapidAPI fallback failed after retries for '{query}' [{country}]: {err}"
                         )
 
-                # --- 3. Normalization and Deduplication ---
+                # --- 3. Normalization, Badging, and Deduplication ---
                 for item in items:
                     asin = item.get("asin")
                     unique_key = f"{asin}_{country}"
@@ -182,6 +182,21 @@ class DealFetcher:
                     except ValueError:
                         rating = 0.0
 
+                    raw_price = item.get("raw_price")
+                    if raw_price is None and price_str:
+                        try:
+                            raw_price = float(
+                                price_str.replace("$", "")
+                                .replace(",", "")
+                                .strip()
+                            )
+                        except ValueError:
+                            raw_price = 0.0
+
+                    badge_label, _ = process_price_badge(
+                        asin=asin, country=country, current_price=raw_price
+                    )
+
                     affiliate_link = self._apply_affiliate_tag(
                         item.get("product_url", "")
                     )
@@ -191,6 +206,7 @@ class DealFetcher:
                         "title": item.get("product_title", "Tech Product"),
                         "price": price_str or "Check Deal",
                         "original_price": orig_price_str,
+                        "badge": badge_label,
                         "currency": region["currency"],
                         "flag": region["flag"],
                         "country": country,
