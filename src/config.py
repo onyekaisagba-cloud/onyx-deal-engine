@@ -1,9 +1,15 @@
+"""
+Onyx Deal Engine - Configuration Manager
+File: src/config.py
+"""
+
 import os
 from dataclasses import dataclass
 from dotenv import load_dotenv
 
 # Load local .env if present
 load_dotenv()
+
 
 @dataclass(frozen=True)
 class Config:
@@ -20,6 +26,12 @@ class Config:
     TELEGRAM_CHAT_ID: str
     HASHNODE_API_KEY: str
     HASHNODE_PUBLICATION_ID: str
+
+    # ADDED: Optional Twitter/X integration fields
+    TWITTER_API_KEY: str
+    TWITTER_API_SECRET: str
+    TWITTER_ACCESS_TOKEN: str
+    TWITTER_ACCESS_TOKEN_SECRET: str
 
     @classmethod
     def from_env(cls):
@@ -38,6 +50,12 @@ class Config:
         hashnode_key = os.getenv("HASHNODE_API_KEY", "")
         hashnode_pub_id = os.getenv("HASHNODE_PUBLICATION_ID", "")
 
+        # ADDED: Optional Twitter/X credentials
+        twitter_api_key = os.getenv("TWITTER_API_KEY", "")
+        twitter_api_secret = os.getenv("TWITTER_API_SECRET", "")
+        twitter_access_token = os.getenv("TWITTER_ACCESS_TOKEN", "")
+        twitter_access_token_secret = os.getenv("TWITTER_ACCESS_TOKEN_SECRET", "")
+
         # Strict check ONLY for core operational keys
         required_keys = {
             "DEVTO_API_KEY": devto_key,
@@ -47,7 +65,9 @@ class Config:
         missing = [name for name, val in required_keys.items() if not val]
 
         if missing:
-            raise ValueError(f"Missing required core environment variable(s): {', '.join(missing)}")
+            raise ValueError(
+                f"Missing required core environment variable(s): {', '.join(missing)}"
+            )
 
         return cls(
             AMAZON_TAG=amazon_tag,
@@ -60,4 +80,9 @@ class Config:
             TELEGRAM_CHAT_ID=telegram_chat,
             HASHNODE_API_KEY=hashnode_key,
             HASHNODE_PUBLICATION_ID=hashnode_pub_id,
+            # ADDED: Mapping Twitter values to constructor
+            TWITTER_API_KEY=twitter_api_key,
+            TWITTER_API_SECRET=twitter_api_secret,
+            TWITTER_ACCESS_TOKEN=twitter_access_token,
+            TWITTER_ACCESS_TOKEN_SECRET=twitter_access_token_secret,
         )
