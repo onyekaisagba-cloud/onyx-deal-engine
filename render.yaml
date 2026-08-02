@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: onyx-deal-engine-runner
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m src.render_runner
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.0
