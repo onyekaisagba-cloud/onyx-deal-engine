@@ -1,10 +1,9 @@
 import time
 import os
 import threading
-from http.server import HTTPServer, BaseHTTPRequestHandler
 import logging
+from http.server import HTTPServer, BaseHTTPRequestHandler
 
-# Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("RenderRunner")
 
@@ -13,7 +12,6 @@ def run_pipeline_loop():
     while True:
         logger.info("Starting scheduled deal engine pipeline run...")
         try:
-            # Trigger main deal engine workflow
             os.system("python -m src.main")
             logger.info("Pipeline run completed successfully.")
         except Exception as e:
@@ -32,12 +30,13 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
 def start_health_server():
     port = int(os.environ.get("PORT", 8080))
     server = HTTPServer(("0.0.0.0", port), HealthCheckHandler)
+    logger.info(f"Health check server listening on port {port}")
     server.serve_forever()
 
 if __name__ == "__main__":
-    # Start the 12-hour background loop thread
+    # Start 12-hour background loop thread
     pipeline_thread = threading.Thread(target=run_pipeline_loop, daemon=True)
     pipeline_thread.start()
     
-    # Keep the Render Web Service active via HTTP health server
+    # Keep Render Web Service alive via HTTP health server
     start_health_server()
