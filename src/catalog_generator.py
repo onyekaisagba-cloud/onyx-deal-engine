@@ -43,7 +43,7 @@ def get_category_slug(title: str) -> str:
 
 
 def render_html_page(title: str, subtitle: str, cards_html: str, nav_html: str) -> str:
-    """Returns a full HTML template configured for conversion and Search Console indexing."""
+    """Returns a full HTML template configured for conversion, Search Console indexing, and Amazon policy compliance."""
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -67,6 +67,7 @@ def render_html_page(title: str, subtitle: str, cards_html: str, nav_html: str) 
         .price {{ font-size: 1.3rem; font-weight: bold; color: #4ade80; margin-bottom: 15px; }}
         .btn {{ display: block; text-align: center; background: #ff9900; color: #111; text-decoration: none; padding: 12px; border-radius: 6px; font-weight: bold; transition: background 0.2s; }}
         .btn:hover {{ background: #e68a00; }}
+        footer {{ margin-top: 50px; text-align: center; color: #64748b; font-size: 0.85rem; border-top: 1px solid #334155; padding-top: 20px; }}
     </style>
 </head>
 <body>
@@ -75,6 +76,9 @@ def render_html_page(title: str, subtitle: str, cards_html: str, nav_html: str) 
         <p class="subtitle">{subtitle}</p>
         <div class="nav">{nav_html}</div>
         <div class="grid">{cards_html}</div>
+        <footer>
+            <p>As an Amazon Associate I earn from qualifying purchases.</p>
+        </footer>
     </div>
 </body>
 </html>
