@@ -30,7 +30,6 @@ def run_pipeline_loop():
 class HealthCheckHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
-        # Clean path leading slash
         req_path = self.path.lstrip("/")
 
         # 1. Serve sitemap.xml
@@ -46,10 +45,10 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 self.end_headers()
             return
 
-        # 2. Serve dynamic category HTML pages under /deals/ or root
+        # 2. Serve static files (root index or /deals/*.html)
         target_file = req_path if req_path and os.path.exists(req_path) else "index.html"
 
-        if os.path.exists(target_file):
+        if os.path.exists(target_file) and os.path.isfile(target_file):
             self.send_response(200)
             self.send_header("Content-type", "text/html; charset=utf-8")
             self.end_headers()
