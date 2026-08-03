@@ -15,14 +15,20 @@ logger = logging.getLogger(__name__)
 DOMAIN = "https://onyx-deal-engine.onrender.com"
 VERIFICATION_TAG = "XrCbkESVmYJFQNyq2mqZkHoOU-S0TN5UL162TIXedPI"
 
-# Keyword mapping to dynamically generate targeted pSEO categories
+# Expanded 12-Category Keyword Mapping for Accelerated pSEO Surface Area
 CATEGORY_MAP = {
-    "gaming-laptops": ["laptop", "notebook"],
-    "4k-monitors": ["monitor", "display", "screen"],
+    "rtx-gaming-laptops": ["laptop", "notebook", "rtx"],
+    "4k-oled-monitors": ["monitor", "display", "screen", "oled"],
     "graphics-cards": ["graphics card", "rtx", "gpu"],
-    "ps5-accessories": ["ps5", "playstation", "controller", "dualsense"],
+    "ps5-accessories": ["ps5", "playstation", "controller", "dualsense", "portal"],
     "noise-canceling-headphones": ["headphone", "headset", "earbuds", "airpods"],
-    "budget-tech-under-100": ["under 100", "cheap", "budget", "discount"],
+    "handheld-gaming": ["handheld", "deck", "rog", "ally"],
+    "gaming-mice-keyboards": ["keyboard", "mouse", "keycap"],
+    "fast-ssd-storage": ["ssd", "nvme", "storage", "drive"],
+    "smart-home-tech": ["smart", "plug", "alexa", "echo"],
+    "budget-tech-under-50": ["under 50", "cheap"],
+    "budget-tech-under-100": ["under 100", "budget"],
+    "premium-tech-deals": ["pro", "ultra", "max"],
 }
 
 
