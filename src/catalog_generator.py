@@ -64,7 +64,7 @@ def generate_html_catalog(
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="google-site-verification" content="vUJO5ZYWYpCMsOBQQ6uGElWMqdq5GhBdYDXb-XtD2ac" />
+    <meta name="google-site-verification" content="XrCbkESVmYJFQNyq2mqZkHoOU-S0TN5UL162TIXedPI" />
     <title>Onyx Tech Deals - Daily High-Value Price Drops</title>
     <style>
         body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; margin: 0; padding: 20px; }}
