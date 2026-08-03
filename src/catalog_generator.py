@@ -20,9 +20,9 @@ CATEGORY_MAP = {
     "gaming-laptops": ["laptop", "notebook"],
     "4k-monitors": ["monitor", "display", "screen"],
     "graphics-cards": ["graphics card", "rtx", "gpu"],
-    "ps5-accessories": ["ps5", "playstation", "controller"],
-    "noise-canceling-headphones": ["headphone", "headset", "earbuds"],
-    "under-100": ["$0", "$10", "$20", "$30", "$40", "$50", "$60", "$70", "$80", "$90"],
+    "ps5-accessories": ["ps5", "playstation", "controller", "dualsense"],
+    "noise-canceling-headphones": ["headphone", "headset", "earbuds", "airpods"],
+    "budget-tech-under-100": ["under 100", "cheap", "budget", "discount"],
 }
 
 
