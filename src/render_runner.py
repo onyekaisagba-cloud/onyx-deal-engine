@@ -30,8 +30,11 @@ def run_pipeline_loop():
 class HealthCheckHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
-        # 1. Serve sitemap.xml for Google Search Console indexing
-        if self.path == "/sitemap.xml":
+        # Clean path leading slash
+        req_path = self.path.lstrip("/")
+
+        # 1. Serve sitemap.xml
+        if req_path == "sitemap.xml":
             if os.path.exists("sitemap.xml"):
                 self.send_response(200)
                 self.send_header("Content-type", "application/xml; charset=utf-8")
@@ -43,16 +46,18 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 self.end_headers()
             return
 
-        # 2. Serve generated index.html catalog
-        self.send_response(200)
-        self.send_header("Content-type", "text/html; charset=utf-8")
-        self.end_headers()
+        # 2. Serve dynamic category HTML pages under /deals/ or root
+        target_file = req_path if req_path and os.path.exists(req_path) else "index.html"
 
-        if os.path.exists("index.html"):
-            with open("index.html", "rb") as f:
+        if os.path.exists(target_file):
+            self.send_response(200)
+            self.send_header("Content-type", "text/html; charset=utf-8")
+            self.end_headers()
+            with open(target_file, "rb") as f:
                 self.wfile.write(f.read())
         else:
-            self.wfile.write(b"Onyx Deal Engine Runner Active")
+            self.send_response(404)
+            self.end_headers()
 
     def do_HEAD(self):
         self.send_response(200)
