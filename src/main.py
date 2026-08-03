@@ -4,7 +4,6 @@ File: src/main.py
 """
 
 import logging
-import requests
 from src.catalog_generator import CatalogGenerator
 from src.config import Config
 from src.devto_publisher import DevToPublisher
@@ -15,21 +14,6 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
 )
 logger = logging.getLogger(__name__)
-
-SITEMAP_URL = "https://onyx-deal-engine.onrender.com/sitemap.xml"
-
-
-def ping_search_engines():
-    """Pings Google Search Console to notify crawlers of updated pSEO sitemap."""
-    try:
-        ping_url = f"https://www.google.com/ping?sitemap={SITEMAP_URL}"
-        response = requests.get(ping_url, timeout=10)
-        if response.status_code == 200:
-            logger.info("Successfully pinged Google Search Console for sitemap re-indexing.")
-        else:
-            logger.warning(f"Google sitemap ping returned status code: {response.status_code}")
-    except Exception as e:
-        logger.error(f"Failed to ping Google Search Console: {e}")
 
 
 def run():
@@ -85,10 +69,6 @@ def run():
     # 6. Multi-Page pSEO Catalog & Sitemap Generator
     catalog_gen = CatalogGenerator(output_path="index.html")
     catalog_success = catalog_gen.generate(deals=deals)
-
-    # 7. Automated Search Engine Re-Indexing Sync
-    if catalog_success:
-        ping_search_engines()
 
     logger.info(
         f"Pipeline complete. Dev.to: {devto_success} | "
