@@ -31,13 +31,19 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         self.send_response(200)
-        self.send_header("Content-type", "text/html")
+        self.send_header("Content-type", "text/html; charset=utf-8")
         self.end_headers()
-        self.wfile.write(b"Onyx Deal Engine Runner Active")
+
+        # Serve generated index.html catalog to pass Google Search Console verification
+        if os.path.exists("index.html"):
+            with open("index.html", "rb") as f:
+                self.wfile.write(f.read())
+        else:
+            self.wfile.write(b"Onyx Deal Engine Runner Active")
 
     def do_HEAD(self):
         self.send_response(200)
-        self.send_header("Content-type", "text/html")
+        self.send_header("Content-type", "text/html; charset=utf-8")
         self.end_headers()
 
 
