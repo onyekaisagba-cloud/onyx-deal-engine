@@ -44,7 +44,7 @@ class DevToPublisher:
         return md
 
     def publish_roundup(self, deals: List[Dict[str, Any]], title: str = None) -> bool:
-        """Publishes the deal article to Dev.to with a unique timestamped title."""
+        """Publishes the deal article to Dev.to with rate-limit handling and a unique timestamped title."""
         if not deals:
             logger.warning("No deals available to publish to Dev.to.")
             return False
@@ -66,6 +66,11 @@ class DevToPublisher:
 
         try:
             response = requests.post(self.url, json=payload, headers=self.headers, timeout=15)
+            
+            if response.status_code == 429:
+                logger.warning("Dev.to rate limit hit (HTTP 429). Skipping Dev.to syndication for this run.")
+                return False
+
             response.raise_for_status()
             res_data = response.json()
             logger.info(f"Successfully published article to Dev.to: {res_data.get('url')}")
