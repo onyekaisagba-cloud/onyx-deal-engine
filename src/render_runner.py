@@ -30,11 +30,24 @@ def run_pipeline_loop():
 class HealthCheckHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
+        # 1. Serve sitemap.xml for Google Search Console indexing
+        if self.path == "/sitemap.xml":
+            if os.path.exists("sitemap.xml"):
+                self.send_response(200)
+                self.send_header("Content-type", "application/xml; charset=utf-8")
+                self.end_headers()
+                with open("sitemap.xml", "rb") as f:
+                    self.wfile.write(f.read())
+            else:
+                self.send_response(404)
+                self.end_headers()
+            return
+
+        # 2. Serve generated index.html catalog
         self.send_response(200)
         self.send_header("Content-type", "text/html; charset=utf-8")
         self.end_headers()
 
-        # Serve generated index.html catalog to pass Google Search Console verification
         if os.path.exists("index.html"):
             with open("index.html", "rb") as f:
                 self.wfile.write(f.read())
