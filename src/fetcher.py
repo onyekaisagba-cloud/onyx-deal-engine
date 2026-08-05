@@ -1,3 +1,8 @@
+"""
+Onyx Deal Engine - Ingestion Fetcher & Data Normalizer
+File: src/fetcher.py
+"""
+
 import logging
 import random
 import time
@@ -14,7 +19,6 @@ logger = logging.getLogger(__name__)
 
 def exponential_backoff(max_retries: int = 3, base_delay: float = 2.0):
     """Decorator that retries a function upon hitting HTTP 429 or network errors,
-
     using exponential backoff with random jitter.
     """
 
@@ -51,9 +55,9 @@ def exponential_backoff(max_retries: int = 3, base_delay: float = 2.0):
 
 class DealFetcher:
 
-    def __init__(self, rapidapi_key: str = "", amazon_tag: str = ""):
+    def __init__(self, rapidapi_key: str = "", amazon_tag: str = "onyxdeals06-20"):
         self.rapidapi_key = rapidapi_key
-        self.amazon_tag = amazon_tag
+        self.amazon_tag = amazon_tag or "onyxdeals06-20"
         self.url = "https://real-time-amazon-data.p.rapidapi.com/search"
         self.headers = {
             "x-rapidapi-key": self.rapidapi_key,
@@ -95,15 +99,17 @@ class DealFetcher:
     def fetch_tech_deals(
         self,
         categories: List[str] = None,
-        min_discount_pct: int = 15,
+        min_discount_pct: int = 10,
         min_rating: float = 4.0,
     ) -> List[Dict[str, Any]]:
         if not categories:
             categories = [
-                "gaming laptop deals",
-                "4k monitor deals",
-                "pc components deals",
-                "wireless audio deals",
+                "rtx 4070 gaming laptop deal",
+                "oled gaming monitor discount",
+                "rtx 4080 graphics card price drop",
+                "ps5 portal accessories deal",
+                "wireless noise canceling headphones deal",
+                "portable gaming handheld deal",
             ]
 
         all_deals = []
@@ -122,7 +128,7 @@ class DealFetcher:
                 # --- 1. Primary: In-house native scraper ---
                 try:
                     raw_native = fetch_amazon_deals_native(
-                        query=query, region=country
+                        query=query, region=country, amazon_tag=self.amazon_tag
                     )
                     if raw_native:
                         for n_item in raw_native:
@@ -223,4 +229,4 @@ class DealFetcher:
         logger.info(
             f"Successfully fetched and filtered {len(all_deals)} high-value deals across US & CA."
         )
-        return all_deals[:10]
+        return all_deals[:20]
