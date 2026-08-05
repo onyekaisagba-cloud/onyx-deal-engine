@@ -59,12 +59,12 @@ def parse_price(price_str: str) -> Optional[float]:
 
 
 def fetch_amazon_deals_native(
-    query: str, region: str = "US", max_retries: int = 3
+    query: str, region: str = "US", max_retries: int = 3, amazon_tag: str = "onyxdeals06-20"
 ) -> List[Dict]:
     """
     Scrapes Amazon search directly for deal listings.
     
-    Returns structured dict objects with keys matching RapidAPI spec:
+    Returns structured dict objects with keys matching pipeline spec:
     asin, product_title, product_price, original_price, discount_percentage, 
     product_url, product_photo, currency, region
     """
@@ -117,16 +117,8 @@ def fetch_amazon_deals_native(
                     else "Unknown Product"
                 )
 
-                # URL Link
-                link_elem = item.find("a", class_="a-link-normal s-no-hover") or item.find(
-                    "a", class_="a-link-normal"
-                )
-                href = link_elem.get("href", "") if link_elem else ""
-                product_url = (
-                    f"{base_url}{href}"
-                    if href.startswith("/")
-                    else f"{base_url}/dp/{asin}"
-                )
+                # URL Link & Tag Injection
+                product_url = f"{base_url}/dp/{asin}?tag={amazon_tag}"
 
                 # Image
                 img_elem = item.find("img", class_="s-image")
@@ -171,10 +163,13 @@ def fetch_amazon_deals_native(
                     )
 
                 if current_price:
+                    flag = "🇨🇦" if region == "CA" else "🇺🇸"
                     deals.append(
                         {
                             "asin": asin,
+                            "title": title,
                             "product_title": title,
+                            "price": f"${current_price:.2f}",
                             "product_price": f"${current_price:.2f}",
                             "raw_price": current_price,
                             "original_price": (
@@ -184,10 +179,13 @@ def fetch_amazon_deals_native(
                             ),
                             "raw_original_price": original_price,
                             "discount_percentage": discount_pct,
+                            "affiliate_url": product_url,
                             "product_url": product_url,
+                            "image_url": photo_url,
                             "product_photo": photo_url,
                             "currency": currency,
                             "region": region,
+                            "flag": flag,
                         }
                     )
 
@@ -203,3 +201,16 @@ def fetch_amazon_deals_native(
             )
 
     return deals
+
+
+class NativeAmazonScraper:
+    """Class wrapper providing an object-oriented interface for deal fetching."""
+
+    def __init__(self, amazon_tag: str = "onyxdeals06-20"):
+        self.amazon_tag = amazon_tag
+
+    def scrape_query(self, query: str, domain: str = "com") -> List[Dict]:
+        region = "CA" if domain.lower() in ["ca", "canada"] else "US"
+        return fetch_amazon_deals_native(
+            query=query, region=region, amazon_tag=self.amazon_tag
+        )
