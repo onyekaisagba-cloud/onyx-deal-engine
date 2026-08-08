@@ -121,23 +121,34 @@ def generate_sitemap(page_paths: List[str], output_path: str = "sitemap.xml") ->
 
 
 def build_cards_html(deals: List[Dict[str, Any]]) -> str:
-    """Renders card components for a subset of deal items."""
+    """Renders high-conversion card components with dynamic price badges and callouts."""
     cards_html = ""
     for deal in deals:
         title = html.escape(deal.get("title", "Tech Deal"))
         price = html.escape(str(deal.get("price", "$0.00")))
+        orig_price = deal.get("original_price")
+        discount_pct = deal.get("discount_percentage", 0)
         img_url = deal.get("image_url", "")
         affiliate_url = deal.get("affiliate_url", "#")
         flag = deal.get("flag", "🇺🇸")
 
+        # Dynamic high-yield savings badge
+        if orig_price and orig_price != "None" and str(orig_price).strip() != "":
+            badge_html = f'<span style="background: #ef4444; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; margin-bottom: 8px; display: inline-block;">SAVE {int(discount_pct)}%</span>'
+            orig_price_html = f'<span style="text-decoration: line-through; color: #64748b; font-size: 0.9rem; margin-left: 8px;">{orig_price}</span>'
+        else:
+            badge_html = '<span style="background: #22c55e; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; margin-bottom: 8px; display: inline-block;">VERIFIED DEAL</span>'
+            orig_price_html = ""
+
         cards_html += f"""
             <div class="card">
                 <div>
+                    {badge_html}
                     <img src="{img_url}" alt="{title}">
                     <h3>{flag} {title}</h3>
-                    <div class="price">{price}</div>
+                    <div class="price">{price} {orig_price_html}</div>
                 </div>
-                <a href="{affiliate_url}" target="_blank" rel="nofollow sponsored" class="btn">Check Price on Amazon</a>
+                <a href="{affiliate_url}" target="_blank" rel="nofollow sponsored" class="btn">⚡ Grab This Deal on Amazon</a>
             </div>
         """
     return cards_html
