@@ -1,3 +1,8 @@
+"""
+Onyx Deal Engine - Dev.to Syndication Publisher
+File: src/devto_publisher.py
+"""
+
 import logging
 import requests
 from datetime import datetime
@@ -5,6 +10,7 @@ from typing import List, Dict, Any
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
 
 class DevToPublisher:
     def __init__(self, api_key: str):
@@ -34,7 +40,7 @@ class DevToPublisher:
                 md += f"![{title}]({img})\n\n"
             
             price_line = f"**Price:** `{price}`"
-            if orig_price:
+            if orig_price and orig_price != "None":
                 price_line += f" ~~(Was {orig_price})~~"
             md += f"{price_line}\n\n"
             md += f"**Rating:** ⭐ {rating} ({num_ratings} reviews)\n\n"
@@ -44,14 +50,19 @@ class DevToPublisher:
         return md
 
     def publish_roundup(self, deals: List[Dict[str, Any]], title: str = None) -> bool:
-        """Publishes the deal article to Dev.to with rate-limit handling and a unique timestamped title."""
+        """Publishes the deal article to Dev.to with high-CTR keyword titles and rate-limit handling."""
         if not deals:
             logger.warning("No deals available to publish to Dev.to.")
             return False
 
         if not title:
-            now_str = datetime.now().strftime("%B %d, %Y - %H:%M UTC")
-            title = f"🔥 Top Tech Deals & Discounts — {now_str}"
+            # Dynamically extract high-intent buyer keywords from the top scraped deal
+            top_deal_title = deals[0].get("title", "Tech") if deals else "Tech"
+            short_product = " ".join(top_deal_title.split()[:4])
+            now_str = datetime.now().strftime("%B %d, %Y")
+            
+            # High-CTR Search Title Format
+            title = f"🔥 Top Tech Deals: {short_product} & Price Drops ({now_str})"
 
         markdown_content = self._generate_markdown(deals)
         payload = {
