@@ -1,43 +1,75 @@
 """
-Onyx Deal Engine - Render Continuous Runner & Web Server
+Onyx Deal Engine - Resilient Render Web & Background Scheduler
 File: src/render_runner.py
 """
 
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import logging
 import os
+import subprocess
+import sys
 import threading
 import time
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
+)
 logger = logging.getLogger("RenderRunner")
 
+INTERVAL_SECONDS = 21600  # 6 Hours
 
-def run_pipeline():
-    """Executes the core main pipeline script."""
-    logger.info("Executing deal engine pipeline run...")
+
+def execute_pipeline_job():
+    """Runs the main pipeline module in an isolated subprocess to prevent thread crashes."""
+    logger.info("Triggering scheduled pipeline execution via subprocess...")
     try:
-        os.system("python -m src.main")
-        logger.info("Pipeline run completed successfully.")
+        result = subprocess.run(
+            [sys.executable, "-m", "src.main"],
+            capture_output=True,
+            text=True,
+            timeout=300,  # 5-minute hard timeout per run
+        )
+        if result.returncode == 0:
+            logger.info("Pipeline execution completed successfully.")
+            if result.stdout:
+                logger.info(f"Pipeline stdout: {result.stdout.strip()[-300:]}")
+        else:
+            logger.error(
+                f"Pipeline subprocess failed with return code {result.returncode}."
+            )
+            if result.stderr:
+                logger.error(f"Pipeline stderr: {result.stderr.strip()[-300:]}")
+    except subprocess.TimeoutExpired:
+        logger.error("Pipeline subprocess timed out after 300 seconds.")
     except Exception as e:
-        logger.error(f"Error executing pipeline: {e}")
+        logger.error(f"Unexpected error executing pipeline subprocess: {e}")
 
 
-def run_pipeline_loop():
-    """Background scheduler running the pipeline every 6 hours (21,600 seconds)."""
+def run_resilient_scheduler():
+    """Infinite resilient loop that runs immediately on boot and retries every 6 hours."""
+    logger.info("Starting background scheduler loop...")
+    
+    # Run immediately on service startup
+    execute_pipeline_job()
+
     while True:
-        # Sleep for 6 hours between automated scheduled runs
-        time.sleep(21600)
-        run_pipeline()
+        try:
+            logger.info(
+                f"Scheduler sleeping for {INTERVAL_SECONDS // 3600} hours until next run..."
+            )
+            time.sleep(INTERVAL_SECONDS)
+            execute_pipeline_job()
+        except Exception as err:
+            logger.error(f"Scheduler loop encountered critical error: {err}. Recovering in 60s...")
+            time.sleep(60)
 
 
 class HealthCheckHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
-        # Normalize request path to strip leading slash and query params
         req_path = self.path.split("?")[0].lstrip("/")
 
-        # 1. Explicit Sitemap Endpoint
+        # 1. Sitemap Endpoint
         if req_path == "sitemap.xml":
             if os.path.exists("sitemap.xml"):
                 self.send_response(200)
@@ -49,7 +81,6 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             else:
                 self.send_response(404)
                 self.end_headers()
-                self.wfile.write(b"Sitemap building in progress...")
             return
 
         # 2. Privacy Policy Endpoint
@@ -65,7 +96,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 self.end_headers()
             return
 
-        # 3. Static File & Sub-Page Server (Root Index or /deals/*.html)
+        # 3. Static File Server (index.html or /deals/*.html)
         target_file = req_path if req_path and os.path.exists(req_path) else "index.html"
 
         if os.path.exists(target_file) and os.path.isfile(target_file):
@@ -86,11 +117,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
 
     def do_HEAD(self):
         req_path = self.path.split("?")[0].lstrip("/")
-        if req_path == "sitemap.xml" and not os.path.exists("sitemap.xml"):
-            self.send_response(404)
-        else:
-            self.send_response(200)
-        
+        self.send_response(200)
         if req_path == "sitemap.xml":
             self.send_header("Content-type", "application/xml; charset=utf-8")
         else:
@@ -106,13 +133,11 @@ def start_health_server():
 
 
 if __name__ == "__main__":
-    # Synchronous initial run to ensure sitemap.xml exists immediately on boot
-    logger.info("Executing boot pipeline run to ensure static assets & sitemap are ready...")
-    run_pipeline()
+    # Start resilient scheduler in background thread
+    scheduler_thread = threading.Thread(
+        target=run_resilient_scheduler, daemon=True
+    )
+    scheduler_thread.start()
 
-    # Start automated 6-hour interval loop in background
-    pipeline_thread = threading.Thread(target=run_pipeline_loop, daemon=True)
-    pipeline_thread.start()
-
-    # Serve static assets & HTTP endpoints for Render and Search Console
+    # Serve static assets and keep Render web instance alive
     start_health_server()
