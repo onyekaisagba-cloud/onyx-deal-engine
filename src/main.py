@@ -22,18 +22,24 @@ def run():
     # 1. Configuration
     config = Config.from_env()
 
-    # 2. High-Yield & High-AOV Category Ingestion
+    # 2. High-Yield & High-AOV Category Ingestion (Expanded 12-Category Grid)
     fetcher = DealFetcher(
         rapidapi_key=config.RAPIDAPI_KEY, amazon_tag=config.AMAZON_TAG
     )
     deals = fetcher.fetch_tech_deals(
         categories=[
             "rtx 4070 gaming laptop deal",
-            "oled gaming monitor discount",
-            "rtx 4080 graphics card price drop",
+            "oled gaming monitor price drop",
+            "rtx 4080 graphics card discount",
             "ps5 portal accessories deal",
-            "wireless noise canceling headphones deal",
+            "wireless noise canceling headphones sale",
             "portable gaming handheld deal",
+            "mechanical gaming keyboard mouse deal",
+            "nvme ssd storage price drop",
+            "smart home tech deals",
+            "budget tech deals under 50",
+            "budget tech deals under 100",
+            "premium pro tech deals",
         ],
         min_discount_pct=10,
         min_rating=4.0,
@@ -51,7 +57,7 @@ def run():
     devto = DevToPublisher(api_key=config.DEVTO_API_KEY)
     devto_success = devto.publish_roundup(deals=deals)
 
-    # 4. Telegram Internal Diagnostic & Logging Feed
+    # 4. Telegram Direct Feed
     telegram_posts = 0
     if config.TELEGRAM_BOT_TOKEN and config.TELEGRAM_CHAT_ID:
         telegram = TelegramPublisher(
