@@ -48,7 +48,7 @@ def execute_pipeline_job():
 def run_resilient_scheduler():
     """Infinite resilient loop that runs immediately on boot and retries every 6 hours."""
     logger.info("Starting background scheduler loop...")
-    
+
     # Run immediately on service startup
     execute_pipeline_job()
 
@@ -60,7 +60,9 @@ def run_resilient_scheduler():
             time.sleep(INTERVAL_SECONDS)
             execute_pipeline_job()
         except Exception as err:
-            logger.error(f"Scheduler loop encountered critical error: {err}. Recovering in 60s...")
+            logger.error(
+                f"Scheduler loop encountered critical error: {err}. Recovering in 60s..."
+            )
             time.sleep(60)
 
 
@@ -69,7 +71,21 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         req_path = self.path.split("?")[0].lstrip("/")
 
-        # 1. Sitemap Endpoint
+        # 1. Permissive robots.txt Endpoint
+        if req_path == "robots.txt":
+            robots_content = (
+                "User-agent: *\n"
+                "Allow: /\n"
+                "Sitemap: https://onyx-deal-engine.onrender.com/sitemap.xml\n"
+            )
+            self.send_response(200)
+            self.send_header("Content-type", "text/plain; charset=utf-8")
+            self.send_header("Cache-Control", "no-cache")
+            self.end_headers()
+            self.wfile.write(robots_content.encode("utf-8"))
+            return
+
+        # 2. Sitemap Endpoint
         if req_path == "sitemap.xml":
             if os.path.exists("sitemap.xml"):
                 self.send_response(200)
@@ -83,7 +99,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 self.end_headers()
             return
 
-        # 2. Privacy Policy Endpoint
+        # 3. Privacy Policy Endpoint
         if req_path == "privacy.html":
             if os.path.exists("privacy.html"):
                 self.send_response(200)
@@ -96,8 +112,10 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 self.end_headers()
             return
 
-        # 3. Static File Server (index.html or /deals/*.html)
-        target_file = req_path if req_path and os.path.exists(req_path) else "index.html"
+        # 4. Static File Server (index.html or /deals/*.html)
+        target_file = (
+            req_path if req_path and os.path.exists(req_path) else "index.html"
+        )
 
         if os.path.exists(target_file) and os.path.isfile(target_file):
             content_type = "text/html; charset=utf-8"
@@ -120,6 +138,8 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         if req_path == "sitemap.xml":
             self.send_header("Content-type", "application/xml; charset=utf-8")
+        elif req_path == "robots.txt":
+            self.send_header("Content-type", "text/plain; charset=utf-8")
         else:
             self.send_header("Content-type", "text/html; charset=utf-8")
         self.end_headers()
