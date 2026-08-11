@@ -68,48 +68,47 @@ def run_resilient_scheduler():
 
 class HealthCheckHandler(BaseHTTPRequestHandler):
 
+    def send_headers_common(self, content_type: str, status_code: int = 200):
+        """Helper to send uniform HTTP headers for search indexing and CORS."""
+        self.send_response(status_code)
+        self.send_header("Content-type", content_type)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("X-Robots-Tag", "all")
+        self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
+        self.end_headers()
+
     def do_GET(self):
-        req_path = self.path.split("?")[0].lstrip("/")
+        req_path = self.path.split("?")[0].strip("/")
 
         # 1. Permissive robots.txt Endpoint
-        if req_path == "robots.txt":
+        if req_path in ["robots.txt", "robots"]:
             robots_content = (
                 "User-agent: *\n"
                 "Allow: /\n"
                 "Sitemap: https://onyx-deal-engine.onrender.com/sitemap.xml\n"
             )
-            self.send_response(200)
-            self.send_header("Content-type", "text/plain; charset=utf-8")
-            self.send_header("Cache-Control", "no-cache")
-            self.end_headers()
+            self.send_headers_common("text/plain; charset=utf-8")
             self.wfile.write(robots_content.encode("utf-8"))
             return
 
         # 2. Sitemap Endpoint
-        if req_path == "sitemap.xml":
+        if req_path in ["sitemap.xml", "sitemap"]:
             if os.path.exists("sitemap.xml"):
-                self.send_response(200)
-                self.send_header("Content-type", "application/xml; charset=utf-8")
-                self.send_header("Cache-Control", "no-cache")
-                self.end_headers()
+                self.send_headers_common("application/xml; charset=utf-8")
                 with open("sitemap.xml", "rb") as f:
                     self.wfile.write(f.read())
             else:
-                self.send_response(404)
-                self.end_headers()
+                self.send_headers_common("text/plain; charset=utf-8", status_code=404)
             return
 
         # 3. Privacy Policy Endpoint
-        if req_path == "privacy.html":
+        if req_path in ["privacy.html", "privacy"]:
             if os.path.exists("privacy.html"):
-                self.send_response(200)
-                self.send_header("Content-type", "text/html; charset=utf-8")
-                self.end_headers()
+                self.send_headers_common("text/html; charset=utf-8")
                 with open("privacy.html", "rb") as f:
                     self.wfile.write(f.read())
             else:
-                self.send_response(404)
-                self.end_headers()
+                self.send_headers_common("text/plain; charset=utf-8", status_code=404)
             return
 
         # 4. Static File Server (index.html or /deals/*.html)
@@ -124,25 +123,20 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             elif target_file.endswith(".css"):
                 content_type = "text/css; charset=utf-8"
 
-            self.send_response(200)
-            self.send_header("Content-type", content_type)
-            self.end_headers()
+            self.send_headers_common(content_type)
             with open(target_file, "rb") as f:
                 self.wfile.write(f.read())
         else:
-            self.send_response(404)
-            self.end_headers()
+            self.send_headers_common("text/plain; charset=utf-8", status_code=404)
 
     def do_HEAD(self):
-        req_path = self.path.split("?")[0].lstrip("/")
-        self.send_response(200)
-        if req_path == "sitemap.xml":
-            self.send_header("Content-type", "application/xml; charset=utf-8")
-        elif req_path == "robots.txt":
-            self.send_header("Content-type", "text/plain; charset=utf-8")
+        req_path = self.path.split("?")[0].strip("/")
+        if req_path in ["robots.txt", "robots"]:
+            self.send_headers_common("text/plain; charset=utf-8")
+        elif req_path in ["sitemap.xml", "sitemap"]:
+            self.send_headers_common("application/xml; charset=utf-8")
         else:
-            self.send_header("Content-type", "text/html; charset=utf-8")
-        self.end_headers()
+            self.send_headers_common("text/html; charset=utf-8")
 
 
 def start_health_server():
