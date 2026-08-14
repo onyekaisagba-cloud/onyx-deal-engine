@@ -16,22 +16,53 @@ logger = logging.getLogger(__name__)
 DOMAIN = "https://onyx-deal-engine.onrender.com"
 VERIFICATION_TAG = "XrCbkESVmYJFQNyq2mqZkHoOU-S0TN5UL162TIXedPI"
 
-# Expanded 12-Category Keyword Mapping for Accelerated pSEO Surface Area
+# Expanded Multi-Industry pSEO Keyword Mapping (Year-Round Revenue Optimization)
 CATEGORY_MAP = {
-    "rtx-gaming-laptops": ["laptop", "notebook", "rtx"],
-    "4k-oled-monitors": ["monitor", "display", "screen", "oled"],
-    "graphics-cards": ["graphics card", "rtx", "gpu"],
-    "ps5-accessories": ["ps5", "playstation", "controller", "dualsense", "portal"],
-    "noise-canceling-headphones": ["headphone", "headset", "earbuds", "airpods"],
-    "handheld-gaming": ["handheld", "deck", "rog", "ally"],
-    "gaming-mice-keyboards": ["keyboard", "mouse", "keycap"],
-    "fast-ssd-storage": ["ssd", "nvme", "storage", "drive"],
-    "smart-home-tech": ["smart", "plug", "alexa", "echo"],
-    "budget-tech-under-50": ["under 50", "cheap"],
-    "budget-tech-under-100": ["under 100", "budget"],
-    "premium-tech-deals": ["pro", "ultra", "max"],
-}
+    # -------------------------------------------------------------------------
+    # 1. High-Margin Digital & Evergreen (365-Day Recurring Income: 15% - 40%)
+    # -------------------------------------------------------------------------
+    "saas-ai-tools": ["ai", "gpt", "saas", "software", "copilot", "prompt", "api"],
+    "hosting-cloud-deals": ["hosting", "server", "domain", "cloud", "vps", "wordpress"],
+    "vpn-privacy-security": ["vpn", "antivirus", "security", "password", "privacy"],
 
+    # -------------------------------------------------------------------------
+    # 2. High-Frequency Retail & Apparel (High Checkout Velocity)
+    # -------------------------------------------------------------------------
+    "trending-fashion-apparel": ["shirt", "shoes", "sneakers", "hoodie", "apparel", "dress", "jacket", "wear"],
+    "designer-watches-accessories": ["watch", "jewelry", "bag", "sunglasses", "backpack", "wallet"],
+
+    # -------------------------------------------------------------------------
+    # 3. Travel & Hospitality (Spring / Summer Peak Season Offset)
+    # -------------------------------------------------------------------------
+    "flight-hotel-discounts": ["hotel", "flight", "resort", "airline", "vacation", "booking", "stay"],
+    "luggage-travel-gear": ["luggage", "suitcase", "travel", "carry-on", "duffel"],
+
+    # -------------------------------------------------------------------------
+    # 4. Health, Fitness & New Year Surge (Q1 Spending Peak)
+    # -------------------------------------------------------------------------
+    "fitness-workout-gear": ["gym", "workout", "dumbbells", "treadmill", "fitness", "activewear"],
+    "health-supplements-wellness": ["protein", "vitamin", "supplement", "creatine", "wellness"],
+
+    # -------------------------------------------------------------------------
+    # 5. Core Consumer Tech & Gaming (Q4 Holiday Peak)
+    # -------------------------------------------------------------------------
+    "rtx-gaming-laptops": ["laptop", "notebook", "rtx", "macbook"],
+    "4k-oled-monitors": ["monitor", "display", "screen", "oled"],
+    "graphics-cards-gpus": ["graphics card", "rtx", "gpu", "radeon"],
+    "ps5-console-accessories": ["ps5", "playstation", "xbox", "controller", "dualsense", "portal"],
+    "noise-canceling-audio": ["headphone", "headset", "earbuds", "airpods", "speaker", "soundbar"],
+    "handheld-gaming-pcs": ["handheld", "deck", "rog", "ally", "switch"],
+    "gaming-mice-keyboards": ["keyboard", "mouse", "keycap", "mousepad"],
+    "fast-ssd-storage": ["ssd", "nvme", "storage", "drive", "hard drive"],
+    "smart-home-automation": ["smart", "plug", "alexa", "echo", "ring", "nest"],
+
+    # -------------------------------------------------------------------------
+    # 6. Intent-Based Budget Buckets (High Search Conversion Rates)
+    # -------------------------------------------------------------------------
+    "budget-deals-under-50": ["under 50", "cheap", "under $50"],
+    "budget-deals-under-100": ["under 100", "under $100"],
+    "premium-flagship-deals": ["pro", "ultra", "max", "flagship", "edition"]
+}
 
 def slugify(text: str) -> str:
     """Converts a string to a clean URL slug."""
