@@ -78,9 +78,21 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
-        req_path = self.path.split("?")[0].strip("/")
+        raw_path = self.path.split("?")[0]
+        req_path = raw_path.strip("/")
 
-        # 1. Permissive robots.txt Endpoint
+        # 1. Dedicated JSON API Endpoint for Extensions
+        if req_path in ["deals.json", "deals"]:
+            if os.path.exists("deals.json"):
+                self.send_headers_common("application/json; charset=utf-8")
+                with open("deals.json", "rb") as f:
+                    self.wfile.write(f.read())
+            else:
+                self.send_headers_common("application/json; charset=utf-8")
+                self.wfile.write(b'{"updated_at": "", "count": 0, "deals": []}')
+            return
+
+        # 2. Permissive robots.txt Endpoint
         if req_path in ["robots.txt", "robots"]:
             robots_content = (
                 "User-agent: *\n"
@@ -91,7 +103,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             self.wfile.write(robots_content.encode("utf-8"))
             return
 
-        # 2. Sitemap Endpoint
+        # 3. Sitemap Endpoint
         if req_path in ["sitemap.xml", "sitemap"]:
             if os.path.exists("sitemap.xml"):
                 self.send_headers_common("application/xml; charset=utf-8")
@@ -101,7 +113,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 self.send_headers_common("text/plain; charset=utf-8", status_code=404)
             return
 
-        # 3. Privacy Policy Endpoint
+        # 4. Privacy Policy Endpoint
         if req_path in ["privacy.html", "privacy"]:
             if os.path.exists("privacy.html"):
                 self.send_headers_common("text/html; charset=utf-8")
@@ -111,10 +123,8 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 self.send_headers_common("text/plain; charset=utf-8", status_code=404)
             return
 
-        # 4. Static File Server (index.html or /deals/*.html)
-        target_file = (
-            req_path if req_path and os.path.exists(req_path) else "index.html"
-        )
+        # 5. Dynamic File Serving (/index.html or /deals/*.html)
+        target_file = req_path if req_path else "index.html"
 
         if os.path.exists(target_file) and os.path.isfile(target_file):
             content_type = "text/html; charset=utf-8"
@@ -122,16 +132,29 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 content_type = "application/xml; charset=utf-8"
             elif target_file.endswith(".css"):
                 content_type = "text/css; charset=utf-8"
+            elif target_file.endswith(".json"):
+                content_type = "application/json; charset=utf-8"
 
             self.send_headers_common(content_type)
             with open(target_file, "rb") as f:
+                self.wfile.write(f.read())
+            return
+
+        # 6. Default Fallback to Main Catalog
+        if os.path.exists("index.html"):
+            self.send_headers_common("text/html; charset=utf-8")
+            with open("index.html", "rb") as f:
                 self.wfile.write(f.read())
         else:
             self.send_headers_common("text/plain; charset=utf-8", status_code=404)
 
     def do_HEAD(self):
-        req_path = self.path.split("?")[0].strip("/")
-        if req_path in ["robots.txt", "robots"]:
+        raw_path = self.path.split("?")[0]
+        req_path = raw_path.strip("/")
+        
+        if req_path in ["deals.json", "deals"]:
+            self.send_headers_common("application/json; charset=utf-8")
+        elif req_path in ["robots.txt", "robots"]:
             self.send_headers_common("text/plain; charset=utf-8")
         elif req_path in ["sitemap.xml", "sitemap"]:
             self.send_headers_common("application/xml; charset=utf-8")
