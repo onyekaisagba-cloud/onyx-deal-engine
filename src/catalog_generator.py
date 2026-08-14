@@ -5,6 +5,7 @@ File: src/catalog_generator.py
 
 from datetime import datetime
 import html
+import json
 import logging
 import os
 import re
@@ -48,8 +49,40 @@ def get_category_slug(title: str) -> str:
     return "general-tech"
 
 
-def render_html_page(title: str, subtitle: str, cards_html: str, nav_html: str) -> str:
-    """Returns a full HTML template configured for conversion, Search Console indexing, and Amazon policy compliance."""
+def render_html_page(title: str, subtitle: str, cards_html: str, nav_html: str, deals: List[Dict[str, Any]] = None) -> str:
+    """Returns a full HTML template configured for conversion, Search Console indexing, JSON-LD structured data, and Amazon policy compliance."""
+    
+    # Generate Schema.org ItemList JSON-LD structured data for Google Rich Snippets
+    json_ld_items = []
+    if deals:
+        for idx, deal in enumerate(deals[:10], start=1):
+            clean_price = re.sub(r"[^\d.]", "", str(deal.get("price", "0.00"))) or "0.00"
+            json_ld_items.append({
+                "@type": "ListItem",
+                "position": idx,
+                "item": {
+                    "@type": "Product",
+                    "name": deal.get("title", "Tech Deal"),
+                    "image": deal.get("image_url", ""),
+                    "offers": {
+                        "@type": "Offer",
+                        "priceCurrency": "USD",
+                        "price": clean_price,
+                        "availability": "https://schema.org/InStock",
+                        "url": deal.get("affiliate_url", DOMAIN)
+                    }
+                }
+            })
+    
+    json_ld_script = ""
+    if json_ld_items:
+        structured_data = {
+            "@context": "https://schema.org",
+            "@type": "ItemList",
+            "itemListElement": json_ld_items
+        }
+        json_ld_script = f'<script type="application/ld+json">\n{json.dumps(structured_data, indent=2)}\n</script>'
+
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -57,6 +90,7 @@ def render_html_page(title: str, subtitle: str, cards_html: str, nav_html: str) 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="google-site-verification" content="{VERIFICATION_TAG}" />
     <title>{title} | Onyx Tech Deals</title>
+    {json_ld_script}
     <style>
         body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; margin: 0; padding: 20px; }}
         .container {{ max-width: 1000px; margin: 0 auto; }}
@@ -92,28 +126,36 @@ def render_html_page(title: str, subtitle: str, cards_html: str, nav_html: str) 
 
 
 def generate_sitemap(page_paths: List[str], output_path: str = "sitemap.xml") -> bool:
-    """Generates an expanded sitemap.xml covering all dynamic pSEO URLs."""
+    """Generates an expanded sitemap.xml with strict Line 1 Column 1 XML declaration."""
     today = datetime.utcnow().strftime("%Y-%m-%d")
     
-    url_nodes = ""
+    url_nodes = []
     for path in page_paths:
         url = f"{DOMAIN}/" if path == "index.html" else f"{DOMAIN}/{path}"
         priority = "1.0" if path == "index.html" else "0.8"
-        url_nodes += f"""  <url>
-    <loc>{url}</loc>
-    <lastmod>{today}</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>{priority}</priority>
-  </url>\n"""
+        url_nodes.append(
+            f"  <url>\n"
+            f"    <loc>{url}</loc>\n"
+            f"    <lastmod>{today}</lastmod>\n"
+            f"    <changefreq>daily</changefreq>\n"
+            f"    <priority>{priority}</priority>\n"
+            f"  </url>"
+        )
 
-    sitemap_content = f"""<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-{url_nodes}</urlset>
-"""
+    nodes_str = "\n".join(url_nodes)
+    
+    # Clean string construction without leading newline
+    sitemap_content = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        f'{nodes_str}\n'
+        '</urlset>'
+    )
+
     try:
         with open(output_path, "w", encoding="utf-8") as f:
             f.write(sitemap_content)
-        logger.info(f"Successfully generated pSEO sitemap with {len(page_paths)} URLs: {output_path}")
+        logger.info(f"Successfully generated clean XML sitemap with {len(page_paths)} URLs: {output_path}")
         return True
     except Exception as e:
         logger.error(f"Failed to generate sitemap: {e}")
@@ -132,8 +174,7 @@ def build_cards_html(deals: List[Dict[str, Any]]) -> str:
         affiliate_url = deal.get("affiliate_url", "#")
         flag = deal.get("flag", "🇺🇸")
 
-        # Dynamic high-yield savings badge
-        if orig_price and orig_price != "None" and str(orig_price).strip() != "":
+        if orig_price and str(orig_price).strip() not in ["None", ""]:
             badge_html = f'<span style="background: #ef4444; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; margin-bottom: 8px; display: inline-block;">SAVE {int(discount_pct)}%</span>'
             orig_price_html = f'<span style="text-decoration: line-through; color: #64748b; font-size: 0.9rem; margin-left: 8px;">{orig_price}</span>'
         else:
@@ -154,18 +195,28 @@ def build_cards_html(deals: List[Dict[str, Any]]) -> str:
     return cards_html
 
 
+def export_json_api(deals: List[Dict[str, Any]], output_path: str = "deals.json") -> bool:
+    """Exports structured JSON data for Chrome/Edge browser extensions."""
+    try:
+        with open(output_path, "w", encoding="utf-8") as f:
+            json.dump({"updated_at": datetime.utcnow().isoformat(), "count": len(deals), "deals": deals}, f, indent=2)
+        logger.info(f"Exported browser extension API feed to {output_path}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to export JSON API feed: {e}")
+        return False
+
+
 def generate_html_catalog(deals: List[Dict[str, Any]], output_path: str = "index.html") -> bool:
-    """Builds index.html alongside category-specific pSEO sub-pages and updates sitemap.xml."""
+    """Builds index.html alongside category-specific pSEO sub-pages, exports extension API JSON, and updates sitemap.xml."""
     if not os.path.exists("deals"):
         os.makedirs("deals", exist_ok=True)
 
-    # 1. Group deals into category buckets
     categorized_deals: Dict[str, List[Dict[str, Any]]] = {}
     for deal in deals:
         slug = get_category_slug(deal.get("title", ""))
         categorized_deals.setdefault(slug, []).append(deal)
 
-    # 2. Construct navigation bar HTML
     nav_links = [f'<a href="{DOMAIN}/" class="active">🔥 All Deals</a>']
     for slug in categorized_deals.keys():
         category_title = slug.replace("-", " ").title()
@@ -174,7 +225,6 @@ def generate_html_catalog(deals: List[Dict[str, Any]], output_path: str = "index
 
     generated_files = [output_path]
 
-    # 3. Generate category pages under /deals/
     for slug, cat_deals in categorized_deals.items():
         category_title = slug.replace("-", " ").title()
         cat_file_path = os.path.join("deals", f"{slug}.html")
@@ -184,29 +234,30 @@ def generate_html_catalog(deals: List[Dict[str, Any]], output_path: str = "index
             title=f"Best {category_title} Price Drops",
             subtitle=f"Automated top-rated {category_title.lower()} offers updated daily.",
             cards_html=cat_cards,
-            nav_html=nav_html
+            nav_html=nav_html,
+            deals=cat_deals
         )
         
         with open(cat_file_path, "w", encoding="utf-8") as f:
             f.write(cat_html)
         generated_files.append(cat_file_path.replace("\\", "/"))
 
-    # 4. Generate Root index.html
     main_cards = build_cards_html(deals)
     main_html = render_html_page(
         title="🔥 Today's Curated Tech Deals",
         subtitle="Automated high-value price drops updated every 6 hours.",
         cards_html=main_cards,
-        nav_html=nav_html
+        nav_html=nav_html,
+        deals=deals
     )
 
     try:
         with open(output_path, "w", encoding="utf-8") as f:
             f.write(main_html)
-        logger.info(f"Successfully generated main index and {len(generated_files) - 1} pSEO category pages.")
-
-        # 5. Rebuild sitemap covering all generated pSEO paths
+        
+        # Rebuild sitemap & extension API feed
         generate_sitemap(generated_files, "sitemap.xml")
+        export_json_api(deals, "deals.json")
         return True
     except Exception as e:
         logger.error(f"Failed to generate catalog pipeline: {e}")
@@ -220,10 +271,8 @@ class CatalogGenerator:
         self.output_path = output_path
 
     def generate(self, deals: List[Dict[str, Any]]) -> bool:
-        """Triggers multi-page HTML catalog generation."""
         return generate_html_catalog(deals, self.output_path)
 
     @staticmethod
     def generate_sitemap(page_paths: List[str], output_path: str = "sitemap.xml") -> bool:
-        """Triggers sitemap generation."""
         return generate_sitemap(page_paths, output_path)
