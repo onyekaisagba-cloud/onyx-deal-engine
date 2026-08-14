@@ -64,6 +64,7 @@ CATEGORY_MAP = {
     "premium-flagship-deals": ["pro", "ultra", "max", "flagship", "edition"]
 }
 
+
 def slugify(text: str) -> str:
     """Converts a string to a clean URL slug."""
     text = text.lower()
@@ -93,7 +94,7 @@ def render_html_page(title: str, subtitle: str, cards_html: str, nav_html: str, 
                 "position": idx,
                 "item": {
                     "@type": "Product",
-                    "name": deal.get("title", "Tech Deal"),
+                    "name": deal.get("title", "Deal"),
                     "image": deal.get("image_url", ""),
                     "offers": {
                         "@type": "Offer",
@@ -120,7 +121,7 @@ def render_html_page(title: str, subtitle: str, cards_html: str, nav_html: str, 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="google-site-verification" content="{VERIFICATION_TAG}" />
-    <title>{title} | Onyx Tech Deals</title>
+    <title>{title} | Onyx Deals</title>
     {json_ld_script}
     <style>
         body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; margin: 0; padding: 20px; }}
@@ -175,7 +176,6 @@ def generate_sitemap(page_paths: List[str], output_path: str = "sitemap.xml") ->
 
     nodes_str = "\n".join(url_nodes)
     
-    # Clean string construction without leading newline
     sitemap_content = (
         '<?xml version="1.0" encoding="UTF-8"?>\n'
         '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
@@ -197,7 +197,7 @@ def build_cards_html(deals: List[Dict[str, Any]]) -> str:
     """Renders high-conversion card components with dynamic price badges and callouts."""
     cards_html = ""
     for deal in deals:
-        title = html.escape(deal.get("title", "Tech Deal"))
+        title = html.escape(deal.get("title", "Deal"))
         price = html.escape(str(deal.get("price", "$0.00")))
         orig_price = deal.get("original_price")
         discount_pct = deal.get("discount_percentage", 0)
@@ -249,21 +249,29 @@ def generate_html_catalog(deals: List[Dict[str, Any]], output_path: str = "index
         categorized_deals.setdefault(slug, []).append(deal)
 
     nav_links = [f'<a href="{DOMAIN}/" class="active">🔥 All Deals</a>']
-    for slug in categorized_deals.keys():
+    for slug in CATEGORY_MAP.keys():
         category_title = slug.replace("-", " ").title()
         nav_links.append(f'<a href="{DOMAIN}/deals/{slug}.html">{category_title}</a>')
     nav_html = "".join(nav_links)
 
     generated_files = [output_path]
 
-    for slug, cat_deals in categorized_deals.items():
+    # Force generation of all defined pSEO category pages even if active deals are 0
+    for slug in CATEGORY_MAP.keys():
+        cat_deals = categorized_deals.get(slug, [])
         category_title = slug.replace("-", " ").title()
         cat_file_path = os.path.join("deals", f"{slug}.html")
-        cat_cards = build_cards_html(cat_deals)
         
+        if cat_deals:
+            cat_cards = build_cards_html(cat_deals)
+            subtitle = f"Automated top-rated {category_title.lower()} offers updated daily."
+        else:
+            cat_cards = '<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: #94a3b8;">⚡ New deals for this category are currently being processed. Check back shortly!</div>'
+            subtitle = f"Curated {category_title.lower()} price drops updating every 6 hours."
+
         cat_html = render_html_page(
-            title=f"Best {category_title} Price Drops",
-            subtitle=f"Automated top-rated {category_title.lower()} offers updated daily.",
+            title=f"Best {category_title} Deals",
+            subtitle=subtitle,
             cards_html=cat_cards,
             nav_html=nav_html,
             deals=cat_deals
@@ -275,7 +283,7 @@ def generate_html_catalog(deals: List[Dict[str, Any]], output_path: str = "index
 
     main_cards = build_cards_html(deals)
     main_html = render_html_page(
-        title="🔥 Today's Curated Tech Deals",
+        title="🔥 Today's Curated Deals",
         subtitle="Automated high-value price drops updated every 6 hours.",
         cards_html=main_cards,
         nav_html=nav_html,
