@@ -31,6 +31,43 @@ CURRENCIES = {
     "CA": "CAD",
 }
 
+# Expanded Multi-Industry Target Search Queries (Covers all 20+ pSEO Categories)
+TARGET_SEARCH_QUERIES = [
+    # 1. Evergreen Digital & SaaS / Security
+    "software subscription deals",
+    "antivirus security software deals",
+    "cloud storage subscription deals",
+
+    # 2. High-Frequency Fashion & Accessories
+    "men women sneakers apparel sale",
+    "designer watches sale",
+    "backpacks travel bags sale",
+
+    # 3. Travel & Hospitality Gear
+    "travel carry on luggage deals",
+    "travel neck pillow packing cubes deals",
+
+    # 4. Health, Fitness & Wellness
+    "workout gym gear deals",
+    "protein whey supplement deals",
+    "fitness smartwatch deals",
+
+    # 5. Core Tech & Hardware
+    "gaming laptop deals",
+    "4k oled monitor deals",
+    "graphics card rtx deals",
+    "ps5 accessories deals",
+    "noise canceling headphones deals",
+    "handheld gaming pc deals",
+    "gaming mouse keyboard deals",
+    "nvme ssd deals",
+    "smart home alexa deals",
+
+    # 6. Intent & Budget Terms
+    "best tech deals under 50",
+    "best tech deals under 100"
+]
+
 
 def _get_headers(region: str) -> Dict[str, str]:
     """Generates sanitized browser headers mimicking direct web user requests."""
@@ -203,6 +240,28 @@ def fetch_amazon_deals_native(
     return deals
 
 
+def fetch_amazon_deals(region: str = "US", amazon_tag: str = "onyxdeals06-20") -> List[Dict]:
+    """
+    High-level orchestrator function that sweeps through all TARGET_SEARCH_QUERIES.
+    Directly imported and executed by src.main.
+    """
+    all_deals = []
+    seen_asins = set()
+
+    for query in TARGET_SEARCH_QUERIES:
+        query_deals = fetch_amazon_deals_native(
+            query=query, region=region, amazon_tag=amazon_tag
+        )
+        for deal in query_deals:
+            asin = deal.get("asin")
+            if asin and asin not in seen_asins:
+                seen_asins.add(asin)
+                all_deals.append(deal)
+
+    logger.info(f"Total unique multi-category Amazon deals aggregated: {len(all_deals)}")
+    return all_deals
+
+
 class NativeAmazonScraper:
     """Class wrapper providing an object-oriented interface for deal fetching."""
 
@@ -214,3 +273,6 @@ class NativeAmazonScraper:
         return fetch_amazon_deals_native(
             query=query, region=region, amazon_tag=self.amazon_tag
         )
+
+    def scrape_all_categories(self, region: str = "US") -> List[Dict]:
+        return fetch_amazon_deals(region=region, amazon_tag=self.amazon_tag)
